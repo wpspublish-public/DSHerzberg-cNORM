@@ -71,8 +71,7 @@ plotSubset(model_ANT, type= 0)
 # Checking the limits of model validity via first order derivative
 # to location outside the age range of the test (= horizontal interpolation)
 # The gradient should not fall below zero.
-
-plotDerivative(model_ANT, minAge=60, maxAge=228, minNorm=50, maxNorm=150)
+# plotDerivative(model_ANT, minAge=60, maxAge=228, minNorm=50, maxNorm=150)
 
 
 
@@ -96,7 +95,15 @@ plotPercentileSeries(data_ANT, model_ANT)
 
 # Alternative: Output of standard scores for a series of raw scores
 
-rawTable(3.75, model_ANT, step=1, minNorm=25, maxNorm=75, minRaw=0, maxRaw=28)
+norms_list <- rawTable(
+  unique(data_ANT$group), 
+  model_ANT, 
+  step = 1, 
+  minNorm = 40, 
+  maxNorm = 160, 
+  minRaw = 0, 
+  maxRaw = 61
+  )
 
 
 
