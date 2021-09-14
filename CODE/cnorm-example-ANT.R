@@ -1,7 +1,10 @@
 library(cNORM)
 suppressMessages(suppressWarnings(library(tidyverse)))
 suppressMessages(library(here))
+library(writexl)
 
+# Prep input data file. Parse to three cols: personID, group (explanatory var  -
+# age), raw score
 data_ANT <-
   suppressMessages(read_csv(here("INPUT-FILES/ANTraw_STAND.csv"))) %>%
   select(ID, agestrat, ANT_total) %>%
@@ -42,8 +45,49 @@ data_ANT <-
          group = agestrat,
          raw = ANT_total)
 
-# Calculation of the manifest percentiles and subsequent
-# normal rank transformation to determine the location
+# data_ANT_altAge <-
+#   suppressMessages(read_csv(here("INPUT-FILES/ANTraw_STAND.csv"))) %>%
+#   select(ID, agestrat, ANT_total) %>%
+#   mutate(across(
+#     agestrat,
+#     ~ case_when(
+#       .x == 5.0 ~ 5,
+#       .x == 5.3 ~ 5.25,
+#       .x == 5.6 ~ 5.5,
+#       .x == 5.9 ~ 5.75,
+#       .x == 6.0 ~ 6,
+#       .x == 6.3 ~ 6.24,
+#       .x == 6.6 ~ 6.5,
+#       .x == 6.9 ~ 6.75,
+#       .x == 7.0 ~ 7,
+#       .x == 7.3 ~ 7.25,
+#       .x == 7.6 ~ 7.5,
+#       .x == 7.9 ~ 7.75,
+#       .x == 8.0 ~ 8,
+#       .x == 8.6 ~ 8.5,
+#       .x == 9.0 ~ 9,
+#       .x == 9.6 ~ 9.5,
+#       .x == 10.0 ~ 10,
+#       .x == 10.6 ~ 10.5,
+#       .x == 11.0 ~ 11,
+#       .x == 11.6 ~ 11.5,
+#       .x == 12.0 ~ 12,
+#       .x == 12.6 ~ 12.5,
+#       .x == 13.0 ~ 13,
+#       .x == 14.0 ~ 14,
+#       .x == 15.0 ~ 15,
+#       .x == 1618.0 ~ 16,
+#       .x == 1921.0 ~ 19,
+#       TRUE ~ NA_real_
+#     )
+#   )) %>%
+#   rename(personID = ID,
+#          group = agestrat,
+#          raw = ANT_total)
+
+# Calculation of the manifest percentiles and subsequent normal rank
+# transformation to determine location (proxy for a norm-referenced score, i.e.,
+# NOT a raw score)
 
 data_ANT <- rankByGroup(data_ANT, scale = "IQ")
 
@@ -95,6 +139,12 @@ plotPercentileSeries(data_ANT, model_ANT)
 
 # Alternative: Output of standard scores for a series of raw scores
 
+tab_names <- c("5.0", "5.3", "5.6", "5.9", "6.0", "6.3", "6.6", "6.9", 
+               "7.0", "7.3", "7.6", "7.9", "8.0", "8.6", "9.0", "9.6", 
+               "10.0", "10.6", "11.0", "11.6", "12.0", "12.6", "13.0", 
+               "14.0", "15.0", "16-18", "19-21")
+
+# Prepare a list of data frames, each df is raw-to-ss lookup table for an age group.
 norms_list <- rawTable(
   unique(data_ANT$group), 
   model_ANT, 
@@ -103,7 +153,18 @@ norms_list <- rawTable(
   maxNorm = 160, 
   minRaw = 0, 
   maxRaw = 61
+  ) %>% 
+  set_names(tab_names) %>% 
+  map( 
+    ~
+      select(.x, raw, norm) %>% 
+      summarize(raw = raw,
+        ss = round(norm, 0))
   )
 
-
+# Write assignments by coder into tabbed, xlsx workbook. To create named tabs,
+# supply writexl::write_xlsx() with a named list of dfs for each tab, tab names
+# will be the names of the list elements
+write_xlsx(norms_list,
+           here("OUTPUT-FILES/ANT-raw-ss-lookup.xlsx"))
 
