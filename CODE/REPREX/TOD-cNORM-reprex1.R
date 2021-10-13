@@ -29,5 +29,5 @@ plotSubset(model, type= 0)
 # When we plot the series of percentiles across different values of k, the plot
 # with nine predictors "looks" best, in terms of solving the problem of
 # intersecting curves.
-plotPercentileSeries(input, model)
+plotPercentileSeries(input, model, end = 10)
 
