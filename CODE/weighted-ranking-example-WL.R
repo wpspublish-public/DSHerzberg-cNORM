@@ -8,6 +8,7 @@
 # Later on, both groups will be drawn with a 50% share each and the percentiles
 # will be estimated without weighting (red) or with weighting (blue)
 # The other parameters can be set at will.
+library(tidyverse)
 library(cNORM)
 
 n.population <- 100000
@@ -59,6 +60,7 @@ total2.c <- total2.c[order(total2.c$z),]
 totalSample3 <- rankByGroup(total2.c, raw="z", group=FALSE, weights = "weight")
 
 # plot
+plot(totalSample$raw, totalSample$percentileTotal, type="l")
 plot(totalSample$raw, totalSample$percentileTotal, type="l")
 lines(totalSample2$z, totalSample2$percentile, col="red")
 lines(totalSample3$z, totalSample3$percentile, col="blue")
