@@ -9,13 +9,15 @@ suppressMessages(library(lubridate))
 
 # General tokens
 urlRemote_path  <- "https://raw.github.com/"
-github_path <- "wpspublish/DSHerzberg-TOD-R/master/INPUT-FILES/NORMS/TODE_8.27.21_fornorms/"
+github_path <- "wpspublish/DSHerzberg-cNORM/master/INPUT-FILES/"
+data_file_name <- "cNORM-demo-TOD-input-data.csv"
+
+input <- suppressMessages(read_csv(url(
+  str_c(urlRemote_path, github_path, data_file_name)
+))) 
 
 
 
-combined_score_to_norm_file_name <- "TODE_8.27.21_fornorms-weighted-sum-scores.csv"
-input_file_path <- "INPUT-FILES/NORMS/TODE_8.27.21_fornorms/"
-output_file_path <- "OUTPUT-FILES/NORMS/TODE_8.27.21_fornorms/"
 
 # Tokens to toggle between using weighted vs. unweighted scores as the basis for
 # the norms.
