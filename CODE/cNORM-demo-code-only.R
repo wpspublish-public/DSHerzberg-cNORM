@@ -1,4 +1,4 @@
-library(cNORM)
+suppressMessages(library(cNORM))
 suppressMessages(suppressWarnings(library(tidyverse)))
 suppressMessages(library(here))
 library(writexl)
@@ -12,45 +12,30 @@ urlRemote_path  <- "https://raw.github.com/"
 github_path <- "wpspublish/DSHerzberg-cNORM/master/INPUT-FILES/"
 data_file_name <- "cNORM-demo-TOD-input-data.csv"
 
-input <- suppressMessages(read_csv(url(
+input_original <- suppressMessages(read_csv(url(
   str_c(urlRemote_path, github_path, data_file_name)
-))) 
+)))
 
 
-
-
-# Tokens to toggle between using weighted vs. unweighted scores as the basis for
-# the norms.
-
-# scores <- c("sege_sum_w", "rlne_sum_w", "rhme_sum_w", "snwe_sum_w",
-# "lswe_sum_w", "lske_sum_w", "ORF_noNeg_w")
-scores <- c("sege_sum", "rlne_sum", "rhme_sum", "snwe_sum",
-            "lswe_sum", "lske_sum", "ORF_noNeg")
+# Tokens naming all scores to be normed on input file
+scores <- c("iws_sum", "bln_sum", "seg_sum")
 
 # Tokens setting the specific score to be normed on this iteration of the
 # script.
-score_to_norm_stem <- "rhme_sum"
+score_to_norm_stem <- "iws_sum"
 score_to_norm_file_name <- str_c(score_to_norm_stem, "-norms-input.csv")
 score_to_norm_max_raw <- data.frame(test = score_to_norm_stem) %>%
-  mutate(
-    max_raw = case_when(
-      str_detect(test, "sege") ~ 25,
-      str_detect(test, "rlne") ~ 120,
-      str_detect(test, "rhme") ~ 30,
-      str_detect(test, "snwe") ~ 32,
-      str_detect(test, "lswe") ~ 38,
-      str_detect(test, "lske") ~ 33,
-      str_detect(test, "ORF_noNeg") ~ 263
-    )
-  ) %>%
+  mutate(max_raw = case_when(
+    str_detect(test, "iws_sum") ~ 44,
+    str_detect(test, "bln_sum") ~ 29,
+    str_detect(test, "seg_sum") ~ 29
+  )) %>%
   pull(max_raw)
 
 
-# to use age as predictor in cNORM, read in DOB, date_admin, calculate
+# to prepare the age variable in cNORM, read in DOB, date_admin, calculate
 # chronological age as decimal value.
-age_contin <- suppressMessages(read_csv(here(
-  str_c(input_file_path, "TODE_8.27.21_fornorms.csv")
-))) %>% 
+age_contin <- input_original %>% 
   mutate(
     across(
       c(DOB, admin_date),
@@ -69,23 +54,10 @@ age_contin <- suppressMessages(read_csv(here(
   # each row belongs to, and that label is the arithmetic mean of chronological
   # age within that group
   bind_cols(getGroups(.$age)) %>% 
-  rename(group = ...51) %>% 
+  # rename the new age group col created by the last step (which initially is
+  # named with a number)
+  rename(group = ...14) %>% 
   select(ID, age, group)
-
-# write versions of age, group vars for consultant Alex Lenhard.
-age_contin %>% 
-  select(ID, age) %>% 
-  write_csv(here(
-    str_c(input_file_path, "TOD-AL-age-contin.csv")
-  ))
-
-age_contin %>% 
-  rename(getGroup = group) %>% 
-  select(ID, age, getGroup) %>% 
-  write_csv(here(
-    str_c(input_file_path, "TOD-AL-age-contin-getGroup.csv")
-  ))
-
 
 # Next block reads an input containing multiple raw score columns per person,
 # processes into separate dfs that are input files into cNORM for norming one
@@ -97,13 +69,11 @@ age_contin %>%
 map(
   scores,
   ~
-    suppressMessages(read_csv(here(
-      str_c(input_file_path, combined_score_to_norm_file_name)
-    ))) %>%
-    select(ID, !!sym(.x)) %>%
-    drop_na(!!sym(.x)) %>% 
-    left_join(age_contin, by = "ID") %>% 
-    rename(raw = !!sym(.x)) %>% 
+    input_original %>%
+    select(ID,!!sym(.x)) %>%
+    drop_na(!!sym(.x)) %>%
+    left_join(age_contin, by = "ID") %>%
+    rename(raw = !!sym(.x)) %>%
     select(ID, age, group, raw)
 ) %>%
   set_names(scores) %>%
@@ -111,15 +81,15 @@ map(
        ~
          write_csv(.x,
                    here(
-                     str_c(input_file_path, .y, "-norms-input.csv")
-                   ))) %>% 
+                     str_c("OUTPUT-FILES/", .y, "-norms-input.csv")
+                   ))) %>%
   invisible(.)
 
 # read single score input.
 
-input <- suppressMessages(read_csv(here(str_c(
-  input_file_path, score_to_norm_file_name
-))))
+input <- suppressMessages(read_csv(here(
+  str_c("OUTPUT-FILES/", score_to_norm_file_name)
+)))
 
 # Alex Lenhard's recommended approach
 
@@ -131,40 +101,87 @@ input <- suppressMessages(read_csv(here(str_c(
 # 2. omit group argument: cnorm() defaults to rankBySlidingWindow, but this can
 # be problematic when there are few cases on the tails of the age distribution -
 
+
+model <- cnorm(
+  raw = input$raw,
+  group = input$group,
+  k = 4,
+  terms = 4,
+  scale = "IQ"
+)
+
 # The two key diagnostics are plot(model, "series") and checkConsistency(). Both
 # target the same problem: violations of monotonicty, or intersecting percentile
 # curves. With plot(model, "series"), you can use "end" argument to set upper
 # limit of predictors.
-
-model <- cnorm(raw = input$raw, group = input$group, k = 4, terms = 5, scale = "IQ")
-# model <- cnorm(raw = input$raw, age = input$age, width = 1, k = 4, terms = 4, scale = "IQ")
-plot(model, "series", end = 10)
+plot(model, "series", end = 8)
 checkConsistency(model)
 
 #Once you have the model, cNORM allows you generate post hoc age groups of any
 #width, centers on any age points you choose. The tab_names token is used for
 #writing out a multi-tabbed norms table, the labels in this token give the lower
 #bound of each age range.
-tab_names <- c("5.0", "5.6", "6.0", "6.6", "7.0", "7.6", "8.0")
-
-# Prepare a list of data frames, each df is raw-to-ss lookup table for an age group.
-norms_list <- rawTable(
-  c(5.25, 5.75, 6.25, 6.75, 7.25, 7.75, 8.25), 
-  model, 
-  step = 1, 
-  minNorm = 40, 
-  maxNorm = 130, 
-  minRaw = 1, 
-  maxRaw = score_to_norm_max_raw,
-  pretty = TRUE
-  ) %>% 
-  set_names(tab_names) %>% 
-  map( 
-    ~
-      select(.x, raw, norm) %>% 
-      summarize(raw = raw,
-                ss = round(norm, 0))
+tab_names <- c(
+  "6.0-6.3",
+  "6.4-6.7",
+  "6.8-6.11",
+  "7.0-7.3",
+  "7.4-7.7",
+  "7.8-7.11",
+  "8.0-8.5",
+  "8.6-8.11",
+  "9.0-9.5",
+  "9.6-9.11",
+  "10.0-10.5",
+  "10.6-10.11",
+  "11.0-11.5",
+  "11.6-11.11",
+  "12.0-12.5",
+  "12.6-12.11",
+  "13.0-13.11",
+  "14.0-14.11",
+  "15.0-16.11",
+  "17.0-18.11"
 )
+
+# Prepare a list of data frames, each df is raw-to-ss lookup table for an age
+# group.
+norms_list <- rawTable(
+  c(
+    6.167,
+    6.5,
+    6.833,
+    7.167,
+    7.5,
+    7.833,
+    8.25,
+    8.75,
+    9.25,
+    9.75,
+    10.25,
+    10.75,
+    11.25,
+    11.75,
+    12.25,
+    12.75,
+    13.5,
+    14.5,
+    16,
+    18.0
+  ),
+  model,
+  step = 1,
+  minNorm = 40,
+  maxNorm = 130,
+  minRaw = 1,
+  maxRaw = score_to_norm_max_raw,
+  pretty = FALSE
+) %>%
+  set_names(tab_names) %>%
+  map(~
+        select(.x, raw, norm) %>%
+        summarize(raw = raw,
+                  ss = round(norm, 0)))
 
 # prepare reversal report
 reversal_report <- norms_list %>%
@@ -177,7 +194,7 @@ reversal_report <- norms_list %>%
   filter(reversal == 1) %>%
   select(raw, agestrat) %>%
   write_csv(here(
-    str_c(output_file_path, score_to_norm_stem, "-reversal-report.csv")
+    str_c("OUTPUT-FILES/", score_to_norm_stem, "-reversal-report-age.csv")
   ))
 
 
@@ -185,17 +202,13 @@ reversal_report <- norms_list %>%
 # named tabs, supply writexl::write_xlsx() with a named list of dfs for each
 # tab, tab names will be the names of the list elements
 write_xlsx(norms_list,
-           here(str_c(
-             output_file_path, score_to_norm_stem, "-raw-ss-lookup-tabbed.xlsx"
-           )))
-
-# write model summary to text file, so you can replicate model later.
-capture.output(
-  summary(model),
-  file = here(
-    str_c(output_file_path, score_to_norm_stem, "-model-summ.txt")  )
-)
-
+           here(
+             str_c(
+               "OUTPUT-FILES/", 
+               score_to_norm_stem,
+               "-raw-ss-lookup-tabbed-age.xlsx"
+             )
+           ))
 
 # write raw-to-ss-lookups to single-sheet table
 table <- norms_list %>%
@@ -205,7 +218,7 @@ table <- norms_list %>%
 
 write_csv(table, 
           here(
-  str_c(output_file_path, score_to_norm_stem, "-raw-ss-lookup-table.csv")
+  str_c("OUTPUT-FILES/", score_to_norm_stem, "-raw-ss-lookup-table-age.csv")
 ))
 
 # write model summary to text file, so you can replicate model later.
@@ -213,7 +226,7 @@ capture.output(
   str_c(score_to_norm_stem, " model summary"), 
   summary(model),
   file = here(
-    str_c(output_file_path, score_to_norm_stem, "-model-summ.txt")  )
+    str_c("OUTPUT-FILES/", score_to_norm_stem, "-model-summ-age.txt")  )
 )
 
 
