@@ -7,13 +7,13 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-### Generating raw-to-SS lookup tables with cNORM
+### Generating raw-to-norm-score lookup tables with cNORM
 
 #### Overview
 
-This demonstration uses the cNORM package to create publishable norms tables. The demonstration data is from the Tests of Dyslexia (TOD) project (2021). The input file contains data from the TOD-Comprehensive (TOD-C) standardization study, with 1407 cases ranging in age from 6 to 19. The input file includes demographic information and three raw scores: iws, bln, seg.
+This demonstration uses the cNORM package to create publishable norms tables. The demonstration data is from the Tests of Dyslexia (TOD) project (2021). The input file contains data from the TOD-Comprehensive (TOD-C) standardization study, with 1407 cases ranging in age from 6 to 19. The input file includes demographic information and raw scores from three TOD subtests: Irregular Word Spelling (`iws`), Blending (`bln`), and Segmenting (`seg`).
 
-The script runs through data preparation, modeling, and output stages. The output includes raw-to-SS lookup tables, in both single-table and tabbed format; a reversal report that flags anomalous age-related progression of standard scores; and a model summary that facilitates replication of the analysis withw the same model parameters.
+The script proceeds through data preparation, modeling, and output stages. The output includes raw-to-SS lookup tables, in both single-table and tabbed format; a reversal report that flags anomalous age-related changes in standard scores; and a model summary that facilitates replication of the analysis.
 
 #### Executable Code
 ```{r cNORM-demo, eval = FALSE}
@@ -199,4 +199,11 @@ Use `case_when()` to code `max_raw` conditionally, based on the value of `test`.
 
 `mutate()` returns a two-column data frame. Use `pull()` to extract the value of `max_raw` into the vector `score_to_norm_max_raw`.
 ```{r cNORM-demo, echo = 16:24, eval = F}
+```
+A useful feature of `cNORM` is its capacity to create its own age-stratrification, constructing age groups that are best suited to the modeling of age-related score changes. Often, _a priori_ age groups, which serve the needs of the audience for published norms, do not stratify the input sample in a way that is optimal for the `cNORM` modeling functions. However, cNORM also allows the respecification of these _a priori_ groups on the output side. As we shall see, whatever age-stratification scheme best suits the needs of the audience for published norms, can be instituted in the final output of `cNORM`.
+
+To use this feature, create a new data frame `age_contin` holding a continuous decimal age variable for each case in the input file. Use `mutate(across())` and `lubridate::mdy()` to coerce the date variables (`DOB`, `admin_date`), which are strings in the input file, into a numeric date-time format. Within `mdy()`, the `.x` token represents the variables designated for transformation by `across()`.
+
+Within the same call of `mutate()`, calculate a new decimal `age` variable. The `%--%` operator of `lubridate` creates an arithmetic date-time interval, or duration, between a start date (here `DOB`) and an end date (here `admin_date`). Dividing this interval, which represents chronological age, by a time period (here `years(1)`, which returns 1 year as an arithmetic date-time period), returns a decimal value for chronological age expressed as years-months-days (e.g., 5 years, 6 months, 0 days = 5.5).
+```{r cNORM-demo, echo = 26:34, eval = F}
 ```

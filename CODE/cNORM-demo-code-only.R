@@ -4,10 +4,6 @@ suppressMessages(library(here))
 library(writexl)
 suppressMessages(library(lubridate))
 
-# Prep input data file. Parse to three cols: personID, group (explanatory var  -
-# age), raw score
-
-# General tokens
 urlRemote_path  <- "https://raw.github.com/"
 github_path <- "wpspublish/DSHerzberg-cNORM/master/INPUT-FILES/"
 data_file_name <- "cNORM-demo-TOD-input-data.csv"
@@ -17,11 +13,7 @@ input_original <- suppressMessages(read_csv(url(
 )))
 
 
-# Tokens naming all scores to be normed on input file
 scores <- c("iws_sum", "bln_sum", "seg_sum")
-
-# Tokens setting the specific score to be normed on this iteration of the
-# script.
 score_to_norm_stem <- "iws_sum"
 score_to_norm_file_name <- str_c(score_to_norm_stem, "-norms-input.csv")
 score_to_norm_max_raw <- data.frame(test = score_to_norm_stem) %>%
@@ -33,14 +25,11 @@ score_to_norm_max_raw <- data.frame(test = score_to_norm_stem) %>%
   pull(max_raw)
 
 
-# to prepare the age variable in cNORM, read in DOB, date_admin, calculate
-# chronological age as decimal value.
 age_contin <- input_original %>% 
   mutate(
     across(
       c(DOB, admin_date),
       ~
-        # lubridate::mdy() coerces string into date-time type
         mdy(.x)
     ),
     # [start_date] %--% [end_date] uses lubridate operator %--% to create a time
