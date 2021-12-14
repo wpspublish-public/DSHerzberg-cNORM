@@ -174,6 +174,7 @@ pre code {
 <h4>Overview</h4>
 <p>This demonstration uses the cNORM package to create publishable norms tables. The demonstration data is from the Tests of Dyslexia (TOD) project (2021). The input file contains data from the TOD-Comprehensive (TOD-C) standardization study, with 1407 cases ranging in age from 6 to 19. The input file includes demographic information and raw scores from three TOD subtests: Irregular Word Spelling (<code>iws</code>), Blending (<code>bln</code>), and Segmenting (<code>seg</code>).</p>
 <p>The script proceeds through data preparation, modeling, and output stages. The output includes raw-to-SS lookup tables, in both single-table and tabbed format; a reversal report that flags anomalous age-related changes in standard scores; and a model summary that facilitates replication of the analysis.</p>
+<p>To run this demonstration, set up an RStudio project titled <code>cNORM</code>, with subfolders <code>CODE</code>, <code>INPUT-FILES</code> and <code>OUTPUT-FILES</code>. Save scripts in <code>CODE</code>, and run them from within the <code>cNORM</code> project.</p>
 </div>
 <div id="executable-code" class="section level4">
 <h4>Executable Code</h4>
@@ -376,8 +377,26 @@ score_to_norm_max_raw &lt;- data.frame(test = score_to_norm_stem) %&gt;%
   )) %&gt;%
   pull(max_raw)</code></pre>
 <p>A useful feature of <code>cNORM</code> is its capacity to create its own age-stratrification, constructing age groups that are best suited to the modeling of age-related score changes. Often, <em>a priori</em> age groups, which serve the needs of the audience for published norms, do not stratify the input sample in a way that is optimal for the <code>cNORM</code> modeling functions. However, cNORM also allows the respecification of these <em>a priori</em> groups on the output side. As we shall see, whatever age-stratification scheme best suits the needs of the audience for published norms, can be instituted in the final output of <code>cNORM</code>.</p>
-<p>To use this feature, create a new data frame <code>age_contin</code> holding a continuous decimal age variable for each case in the input file. Use <code>mutate(across())</code> and <code>lubridate::mdy()</code> to coerce the date variables (<code>DOB</code>, <code>admin_date</code>), which are strings in the input file, into the numeric date-time format. Within <code>mdy()</code>, the <code>.x</code> token represents the variables designated for transformation by <code>across()</code>.</p>
-<p>Within the same call of <code>mutate()</code>, calculate a new decimal <code>age</code> variable. The <code>%--%</code> operator of <code>lubridate</code> creates a arithmetic date-time interval, or duration, between a start date (here <code>DOB</code>) and an end date (here <code>admin_date</code>). Dividing this interval, which represents chronological age, by a time period (here <code>years(1)</code>, which returns 1 year as an arithmetic date-time period), returns a decimal value for chronological age expressed as years-months-days (e.g., 5 years, 6 months, 0 days = 5.5).</p>
+<p>To use this feature, create a new data frame <code>age_contin</code> holding a continuous decimal age variable for each case in the input file. Use <code>mutate(across())</code> and <code>lubridate::mdy()</code> to coerce the date variables (<code>DOB</code>, <code>admin_date</code>), which are strings in the input file, into a numeric date-time format. Within <code>mdy()</code>, the <code>.x</code> token represents the variables designated for transformation by <code>across()</code>.</p>
+<p>Within the same call of <code>mutate()</code>, calculate a new decimal <code>age</code> variable. The <code>%--%</code> operator of <code>lubridate</code> creates an arithmetic date-time interval, or duration, between a start date (here <code>DOB</code>) and an end date (here <code>admin_date</code>). Dividing this interval, which represents chronological age, by a time period (here <code>years(1)</code>, which returns 1 year as an arithmetic date-time period), returns a decimal value for chronological age expressed as years-months-days (e.g., 5 years, 6 months, 0 days = 5.5).</p>
+<p>Use <code>cNORM::getGroups(.$age)</code> to obtain age-stratification optimized for the norms modeling process. <code>.$age</code> indicates that <code>getGroups()</code> is to operate on the <code>age</code> column of the current data object.</p>
+<p>By default, <code>getGroups()</code> attempts to form equal-sized age groups with about 100 cases each. Below are the labels for the 15 age groups that <code>getGroups()</code> created from the input sample, which has 1407 cases. Each label is the arithmetic mean of the <code>age</code> variable for the cases assigned to that group.</p>
+<pre><code>6.964081  
+8.016325  
+8.612022  
+9.113898  
+9.694660 
+10.378862 
+11.024620
+11.689430 
+12.409892 
+13.102322 
+13.851553 
+14.827028 
+15.693530 
+16.688863
+17.971970</code></pre>
+<p>Wrapping <code>getGroups()</code> in <code>bind_cols()</code> adds a new column to the input data object. This new column, which is provisionally named <code>...14</code> for its position in the current data object, contains the age-group assignment for each case in the input sample. Complete the setup of the <code>age_contin</code> data frame by renaming <code>...14</code> to the more meaningful <code>group</code>, and subsetting the columns with <code>select()</code>.</p>
 <pre class="r"><code>age_contin &lt;- input_original %&gt;%
   mutate(across(c(DOB, admin_date),
                 ~
@@ -386,6 +405,31 @@ score_to_norm_max_raw &lt;- data.frame(test = score_to_norm_stem) %&gt;%
   bind_cols(getGroups(.$age)) %&gt;%
   rename(group = ...14) %&gt;%
   select(ID, age, group)</code></pre>
+<p>The <code>cNORM</code> norming process operates on one score at a time. For tests with multiple subtest scores that need to be normed, the workflow is to feed one score at a time through the <code>cNORM</code> script. The next code block partitions the example data file, which contains three subtest scores for each case, into separate data frames for each score containing only the variables needed by <code>cNORM</code>.</p>
+<p>The code includes two iterative segments. In the first, <code>map()</code> is used to apply a series of functions to each element of the <code>scores</code> vector, which contains the names of the three subtest scores in the input data set. Within <code>map</code>, <code>.x</code> represents the currently-iterated element of the <code>scores</code> vector (i.e., one subtest score).</p>
+<p>In the function pipeline, <code>input_original</code> is sent to <code>select</code> to subset the columns to only those required by <code>cNORM</code>, which are the case <code>ID</code> and the subtest score to be normed. Because the vector <code>scores</code> contains quoted strings, and <code>select()</code> expects unquoted column names, <code>!!sym(.x)</code> is used to unquote the currently iterated subtest name. This same operation is employed within other functions in this pipeline.</p>
+<p><code>drop_na()</code> drops rows (cases) that are missing the subtest score currently being normed. <code>left_join()</code> joins the current object with the previously created <code>age_contin</code>, matching cases <code>by = &quot;ID&quot;</code>. To obtain the columns require by <code>cNORM</code>, <code>rename()</code> changes the subtest score name to the generic <code>raw</code>, and <code>select()</code> subsets the columns.</p>
+<p>At this point, <code>map()</code> has finished its operation, returning a list of unnamed dataframes, one for each subtest score, containing the variables required by <code>cNORM</code>. <code>set_names(scores)</code> is used to name each data frame with its corresponding subtest label.</p>
+<p>Next, the list of data frames is piped into <code>map2()</code>, which enables simultaneous parallel iteration over two inputs of equal length (tokenized as <code>.x</code> and <code>.y</code>). In this call of <code>map2()</code>, the current piped object (the list of data frames) is the <code>.x</code> input, and the <code>scores</code> vector is the <code>.y</code> input.</p>
+<p>The purpose of the <code>map2()</code> call is to write each of the data frames on the input list to an external <code>.csv</code> file, where it can be read in for processing by <code>cNORM</code>.</p>
+<pre class="r"><code>map(
+  scores,
+  ~
+    input_original %&gt;%
+    select(ID,!!sym(.x)) %&gt;%
+    drop_na(!!sym(.x)) %&gt;%
+    left_join(age_contin, by = &quot;ID&quot;) %&gt;%
+    rename(raw = !!sym(.x)) %&gt;%
+    select(ID, age, group, raw)
+) %&gt;%
+  set_names(scores) %&gt;%
+  map2(scores,
+       ~
+         write_csv(.x,
+                   here(
+                     str_c(&quot;OUTPUT-FILES/&quot;, .y, &quot;-norms-input.csv&quot;)
+                   ))) %&gt;%
+  invisible(.)</code></pre>
 </div>
 </div>
 </div>

@@ -12,7 +12,6 @@ input_original <- suppressMessages(read_csv(url(
   str_c(urlRemote_path, github_path, data_file_name)
 )))
 
-
 scores <- c("iws_sum", "bln_sum", "seg_sum")
 score_to_norm_stem <- "iws_sum"
 score_to_norm_file_name <- str_c(score_to_norm_stem, "-norms-input.csv")
@@ -24,7 +23,6 @@ score_to_norm_max_raw <- data.frame(test = score_to_norm_stem) %>%
   )) %>%
   pull(max_raw)
 
-
 age_contin <- input_original %>% 
   mutate(
     across(
@@ -32,19 +30,9 @@ age_contin <- input_original %>%
       ~
         mdy(.x)
     ),
-    # [start_date] %--% [end_date] uses lubridate operator %--% to create a time
-    # interval (duration). Dividing interval by a period (years(1) = 1 year)
-    # returns age in years-months-days as a decimal value (e.g., 5 years, 6
-    # months, 0 days = 5.5)
     age = (DOB %--% admin_date) / years (1)
   ) %>%
-  # here bind_cols joins a col created by cNORM::getGroups(), which returns vec
-  # with equal size age strata, where value of col is a label for the age stratum that
-  # each row belongs to, and that label is the arithmetic mean of chronological
-  # age within that group
   bind_cols(getGroups(.$age)) %>% 
-  # rename the new age group col created by the last step (which initially is
-  # named with a number)
   rename(group = ...14) %>% 
   select(ID, age, group)
 
@@ -69,9 +57,9 @@ map(
   map2(scores,
        ~
          write_csv(.x,
-                   here(
-                     str_c("OUTPUT-FILES/", .y, "-norms-input.csv")
-                   ))) %>%
+                     here(
+                       str_c("OUTPUT-FILES/", .y, "-norms-input.csv")
+                     ))) %>%
   invisible(.)
 
 # read single score input.
