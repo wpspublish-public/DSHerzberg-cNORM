@@ -36,13 +36,6 @@ age_contin <- input_original %>%
   rename(group = ...14) %>% 
   select(ID, age, group)
 
-# Next block reads an input containing multiple raw score columns per person,
-# processes into separate dfs that are input files into cNORM for norming one
-# raw score. Within the process, a list of dfs is created and those dfs are
-# eventually written out as .csvs, but the list itself is invisible, it's never
-# preserved in the global environment. These new input files for cnorm()
-# incorporate the continuous age variable and age grouping variable created in
-# the previous step.
 map(
   scores,
   ~

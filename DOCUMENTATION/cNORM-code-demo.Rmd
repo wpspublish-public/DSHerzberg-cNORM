@@ -15,7 +15,7 @@ This demonstration uses the cNORM package to create publishable norms tables. Th
 
 The script proceeds through data preparation, modeling, and output stages. The output includes raw-to-SS lookup tables, in both single-table and tabbed format; a reversal report that flags anomalous age-related changes in standard scores; and a model summary that facilitates replication of the analysis.
 
-To run this demonstration, set up an RStudio project titled `cNORM`, with subfolders `CODE`, `INPUT-FILES` and `OUTPUT-FILES`. Save scripts in `CODE`, and run them from within the `cNORM` project.
+To run this demonstration, set up an RStudio project called `cNORM`, with subfolders `CODE`, `INPUT-FILES` and `OUTPUT-FILES`. Save scripts in `CODE`, and run them from within the `cNORM` project.
 
 #### Executable Code
 ```{r cNORM-demo, eval = FALSE}
@@ -233,19 +233,48 @@ Wrapping `getGroups()` in `bind_cols()` adds a new column to the input data obje
 
 ```{r cNORM-demo, echo = 26:34, eval = F}
 ```
-The `cNORM` norming process operates on one score at a time. For tests with multiple subtest scores that need to be normed, the workflow is to feed one score at a time through the `cNORM` script. The next code block partitions the example data file, which contains three subtest scores for each case, into separate data frames for each score containing only the variables needed by `cNORM`.
+The `cNORM` norming process operates on one score at a time. For tests with multiple subtest scores that need to be normed, the workflow is to feed one score at a time through the `cNORM` script. The next code block partitions the example data file, which contains three subtest scores for each case, into separate data frames for each score. These data frames contain only the variables needed by `cNORM`.
 
-The code includes two iterative segments. In the first, `map()` is used to apply a series of functions to each element of the `scores` vector, which contains the names of the three subtest scores in the input data set. Within `map`, `.x` represents the currently-iterated element of the `scores` vector (i.e., one subtest score).
+The code includes two iterative segments. In the first, `map()` is used to apply a series of functions to each element of the `scores` vector, which contains the names of the three subtest scores in the input data set. Within `map`, `.x` represents the currently-iterated element of the `scores` vector (i.e., the name of a subtest score).
 
-In the function pipeline, `input_original` is sent to `select` to subset the columns to only those required by `cNORM`, which are the case `ID` and the subtest score to be normed. Because the vector `scores` contains quoted strings, and `select()` expects unquoted column names, `!!sym(.x)` is used to unquote the currently iterated subtest name. This same operation is employed within other functions in this pipeline.
+In the function pipeline, `input_original` is sent to `select` to subset only the columns required by `cNORM`, which are the case `ID` and the subtest score to be normed. Because the vector `scores` contains quoted strings, and `select()` expects unquoted column names, `!!sym(.x)` is used to unquote the currently iterated subtest name. This same unquoting function is used elsewhere in this pipeline.
 
-`drop_na()` drops rows (cases) that are missing the subtest score currently being normed. `left_join()` joins the current object with the previously created `age_contin`, matching cases `by = "ID"`. To obtain the columns require by `cNORM`, `rename()` changes the subtest score name to the generic `raw`, and `select()` subsets the columns.
+`drop_na()` deletes rows (cases) that are missing the subtest score currently being normed. `left_join()` joins the columns of the current object with those of the previously created `age_contin`, matching cases `by = "ID"`. To obtain the column configuration required by `cNORM`, `rename()` changes the subtest score name to the generic `raw`, and `select(ID, age, group, raw)` subsets the columns in the preferred left-right sequence.
 
 At this point, `map()` has finished its operation, returning a list of unnamed dataframes, one for each subtest score, containing the variables required by `cNORM`. `set_names(scores)` is used to name each data frame with its corresponding subtest label.
 
-Next, the list of data frames is piped into `map2()`, which enables simultaneous parallel iteration over two inputs of equal length (tokenized as `.x` and `.y`). In this call of `map2()`, the current piped object (the list of data frames) is the `.x` input, and the `scores` vector is the `.y` input.
+Next, the list of data frames is piped into `map2()`, which enables simultaneous parallel iteration over two inputs of equal length (tokenized as `.x` and `.y`). In this call of `map2()`, the current piped object (the list of data frames) is the `.x` input, and the `scores` vector is the `.y` input. Both inputs have three elements (i.e., they are of equal length).
 
-The purpose of the `map2()` call is to write each of the data frames on the input list to an external `.csv` file, where it can be read in for processing by `cNORM`.
+The purpose of the `map2()` call is to write each of the data frames on the input list to an external `.csv` file, where it can then be read back in for processing by `cNORM`. `write_csv()` is used to write the currently iterated `.x` data frame to a file path/file name that includes that currently iterated `.y` subtest score name. `here()` anchors the file path in the `cNORM` project folder, and `str_c()` concatenates three string elements, including the `.y` name, into a new string that is the file path.
+
+Because the script writes external files, there's no need to preserve the list of subtest specific data frames in the global environment. The last function in the pipeline, `invisible()`, ensures that the list object neither prints to the console nor appears in the global environment.  
 ```{r cNORM-demo, echo = 35:53, eval = F}
 ```
+The next code block executes the `cNORM` modeling process, in which the increase in a latent ability over age is modeled based on the raw input data. The raw-to-norm score lookup tables are later constructed based on this model of cognitive development.
 
+As noted previously, the `cNORM` workflow operates on one subtest score at a time. Here, `read_csv()` is used to read in one of the .csv files written out in the preceeding code. The file path is concatenated from tokens intitialized at the begining of the of the script, in which, for this example, `iws_sum` was designated as the score to be normed.
+
+`cnorm()` is the modeling function, and its arguments are as follows:
+
+* `raw`: designates the raw score column in the input data file (here `input$raw`).
+* `group`: designates the age group column in the input data file (here `input$group`).
+* `k`: a power constant that sets the limit on the expansion of the Taylor polynomial series, which controls the precision of estimation of the normative curve. The default value is 4, and values of 3 and 5 can used in searching for an acceptable model. `k = 5` is computationally intensive and entails processing times of 5 to 10 minutes on many CPUs.
+* `terms`: sets the number of terms in the regression equation that expresses the normative model. `cnorm()` finds the best-fitting model with this number of terms.
+* `scale`: sets the scale of the norm score. Values can be `"IQ"`,`"T"`,`"z"`, `"percentile"`, or a vector that provides the mean and standard deviation of the scale (e.g., `c(10, 3)`).
+
+The initial output of `cNORM()` is a model summary printed in the console, and a plot of the observed and predicted percentile curves associated with the selected norming model. The plot shown below is for the `iws` raw score in the input sample.
+
+In this plot, the x-axis variable is age group, and the y-axis variable is raw score. The plot represents seven percentile ranks: 2.5, 10, 25, 50, 75, 90, 97.5. The colored circles represent the actual raw scores associated with these percentiles, per age group, in the input data. The solid lines represent the outcome of the modeling process, whereby the selected regression equation is used to smooth the age-related progression of the seven percentile ranks.
+
+The plot also show the proportion of variance in raw scores that is explained by the regresion model (here, R^2^ = 0.9677). This value is usually high, and is not the key factor to examine in acessing the suitablity of the model. Rather, what we look for in this plot is that the percentile curves do not intersect over the age range of the test. 
+
+Intersecting percentile curves would indicate an unexpected change in the raw to norm-score relationship from one age group to the next. For most latent abilities, we expect indicator scores to increase monotonically with increasing age. Thus, a single raw score is associated with progessively lower norm scores as age increases. This occurs because we expect the mean raw score to increase from one age group to the next, and, consquently, an identical raw score that is below the mean, moves further below the mean in the next oldest age group, resulting in a lower norm score.
+
+When the plot shows intersecting percentile curves, however, it indicates that the norming model has produced an unexpected result. That is, for example, the same raw score is associated with a higher norm score in the next oldest age group. This situation is aslo referred to as a norm-score _reversal_.
+
+Usually, the presence of intersecting percentile curves prompts re-running the `cnorm()` modelling function with different parameters (i.e., different values of `k` and `terms`), in order to find a model that yields the optimal non-intersecting percentile curves.
+
+![](/Users/dherzberg/Desktop/R/cNORM/DOCUMENTATION/cNORM-code-demo-plot.png)
+
+```{r cNORM-demo, echo = 54:67, eval = F}
+```
