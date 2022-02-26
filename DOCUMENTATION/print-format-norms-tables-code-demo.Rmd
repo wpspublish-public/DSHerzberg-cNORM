@@ -9,9 +9,65 @@ knitr::opts_chunk$set(echo = TRUE)
 
 #### Overview
 
-The purpose of this script is to convert lookup tables from cNORM, that have been modified by a project director (e.g., hand-smoothing has been applied) into print-format lookup tables. Because there is a step of human-intervention outside cNORM, the process cannot be automated as part of the basic cNORM workflow.
+The workflow of developing norms (i.e., creating raw-to-norm-score lookup tables) has three stages:
 
-The input tables embody a hierarchy of data in which there is one table per test, and each of these tables holds the lookup columns for all age strats. In addition, you lookup raw scores in the left-ward column and read to the right to find the associated standard scores. here is the head of one such table.
+1.  Model the raw-to-norm-score relationship using `cNORM` (or custom R code) and create basic lookup tables as output.
+2.  Examine the basic lookup tables and apply manual smoothing as needed to prepare the norms for clinical use.
+3.  Convert the modified basic lookup tables into print-format lookup tables (or, alternatively, into digital format lookup tables).
+
+Because Stage 2 is a manual modification of `cNORM` output, Stage 3 cannot be reintegrated into the `cNORM` workflow, and must be handled separately. That is the purpose of this script: to accomplish Stage 3. The script takes as its input the basic format lookup table and transforms them into the print format. The script assumes a project with age-stratified norms and multiple tests.
+
+At its core, this conversion consists of a transformation in the hierarchical organization of the data. The input tables embody a data hierarchy which there is one table per test, and each of these tables holds the lookup columns for all age groups. In addition, one looks up raw scores in a left-ward column and reads to the right to find the associated norm scores. Here is the head of one such input table:
+
+    raw    5.0-5.3   5.4-5.7   5.8-5.11   6.0-6.5   6.6-6.11   7.0-7.5   7.6-7.11   8.0-8.5
+
+    0        66        62         58        55         50        47         44        40
+
+    1        70        66         62        58         53        50         47        44
+
+    2        74        70         66        61         57        53         49        46
+
+    3        77        74         70        65         60        56         53        49
+
+    4        80        77         73        68         63        58         55        51
+
+    5        83        80         75        70         65        60         56        53
+
+    6        86        82         77        72         67        62         58        55
+
+    7        89        84         79        74         68        64         60        56
+
+    8        91        86         81        76         70        65         61        57
+
+    9        93        88         83        77         72        67         62        59
+
+Note that the column names are the age range (in `years.months` format) of each age group.
+
+In the print-format lookup tables, these hierarchies are inverted. That is, there is one table per age group, and each of these tables holds the lookup columns for all tests. Furthermore, on the output side, one looks up raw scores in the rightward columns and reads to the left to find the associated standard scores. Here is the head of one such output table:
+
+    perc    ss    LSK-E   LSW-E  RHY-E  RLN-E  SEG-E  SPW-E 
+
+    98      130    27–33  25–38  21–30  73–120 21–25  20–32
+
+    97      129    -       24      -       72      20      19
+
+    97      128    26      -       20      71      -       -
+
+    96      127    -       23      -       70      -       -
+
+    96      126    -       -       19      68–69  19      18
+
+    95      125    25      22      -       67      -       -
+
+    95      124    -       -       18      66      -       -
+
+    94      123    24      21      17      65      18      17
+
+    93      122    -       -       -       64      -       -
+
+    92      121    23      20      16      63      -       -
+
+Note that the column names are the acronym of each test.
 
 #### Executable Code
 
