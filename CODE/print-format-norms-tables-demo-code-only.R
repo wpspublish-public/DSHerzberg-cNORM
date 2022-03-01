@@ -2,43 +2,6 @@ suppressMessages(library(here))
 suppressMessages(library(tidyverse))
 suppressMessages(library(writexl))
 
-
-
-```
-perc     ss  LSK-E   LSW-E   RHY-E   RLN-E   SEG-E   SPW-E 
-98      130 27--33  25--38  21--30  73--120 21--25  20--32
-97      129 -       24      -       72      20      19
-97      128 26      -       20      71      -       -
-96      127 -       23      -       70      -       -
-96      126 -       -       19      68--69  19      18
-95      125 25      22      -       67      -       -
-95      124 -       -       18      66      -       -
-94      123 24      21      17      65      18      17
-93      122 -       -       -       64      -       -
-92      121 23      20      16      63      -       -
-```
-
-# What the script accomplishes is a transformation of the essential hierarchies
-# of the data structures of the input, and a reformation of the cells
-# themselves. Recall that the lookup relationship between raw scores and
-# standard scores is many-to-one. That is, a range of raw scores (multiple raw
-# scores) can  map onto a single standard score, but each raw score on its own
-# maps onto one and only one standard score. 
-
-########## NEXT TWO PARAGRAPHS ARE OPTIMIZED TEXT IMPORTED FROM FINISHED DOCUMENTATION.
-
-# The lookup relationship between raw and T-scores is many-to-one, meaning that
-# each value of raw maps onto one and only one value of T, but each value of T
-# may map onto more than one value of raw.
-
-# Print format: The left-most column contains all possible values of T
-# (reflecting any truncation of the T-score distribution), sorted descending.
-# Rightward columns contain corresponding raw scores for each scale. Reflecting
-# the many-to-one lookup relationship, some of the rightward cells contain
-# single raw scores, while others contain a range of raw scores.
-
-###########
-
 # Thus, the initial transformation of
 # the work flow is to collapse the incremental sequence of raw scores so that
 # each standard score occupies only a single row in the output. Prior to this

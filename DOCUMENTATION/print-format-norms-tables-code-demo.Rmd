@@ -9,15 +9,19 @@ knitr::opts_chunk$set(echo = TRUE)
 
 #### Overview
 
-The workflow of developing norms (i.e., creating raw-to-norm-score lookup tables) has three stages:
+The norms development process (i.e., the process of creating raw-to-norm-score[^1] lookup tables) has three stages:
 
-1.  Model the raw-to-norm-score relationship using `cNORM` (or custom R code) and create basic lookup tables as output.
-2.  Examine the basic lookup tables and apply manual smoothing as needed to prepare the norms for clinical use.
-3.  Convert the modified basic lookup tables into print-format lookup tables (or, alternatively, into digital format lookup tables).
+[^1]: In this general overview we refer to "norm scores", rather than specific types of norm scores, such as T scores or IQ-type standard scores. Once the discussion turns to the specific input files used by this script, we will refer to standard scores.
 
-Because Stage 2 is a manual modification of `cNORM` output, Stage 3 cannot be reintegrated into the `cNORM` workflow, and must be handled separately. That is the purpose of this script: to accomplish Stage 3. The script takes as its input the basic format lookup table and transforms them into the print format. The script assumes a project with age-stratified norms and multiple tests.
+1.  Modelling the raw-to-norm-score relationship using `cNORM` (or custom R code) and create basic lookup tables as output.
+2.  Applying manual smoothing to the basic lookup tables, as needed, to prepare the norms for clinical use.
+3.  Converting the modified basic lookup tables into print-format lookup tables (or, alternatively, into digital-format lookup tables).
 
-At its core, this conversion consists of a transformation in the hierarchical organization of the data. The input tables embody a data hierarchy which there is one table per test, and each of these tables holds the lookup columns for all age groups. In addition, one looks up raw scores in a left-ward column and reads to the right to find the associated norm scores. Here is the head of one such input table:
+Because Stage 2 is a manual modification of `cNORM` output, Stage 3 cannot be reintegrated into the `cNORM` workflow. Stage 3 must be handled separately, and that is the purpose of this R script. The script takes as input the basic lookup tables and transforms them into the print format. The script assumes a project with age-stratified norms and multiple tests.
+
+It is important to keep in mind that the lookup relationship between raw and norm scores is many-to-one. That is, each raw score value maps onto one and only one norm score value, but each norm score value may map on to more than one raw score value. This many-to-one relationship will be made explicit in following narrative.
+
+At its core, the Stage 3 converstion consists of a transformation in the hierarchical organization of the data. In this script, the input tables embody a data hierarchy in which age groups are a subordinate category of tests. Thus, there is one table per test, and each of these tables holds the lookup columns for all age groups. In addition, one looks up raw scores in a column at the left margin of the table, and reads to the right to find the column with the associated standard scores for a particular age group. Here is the head of one such input table:
 
     raw    5.0-5.3   5.4-5.7   5.8-5.11   6.0-6.5   6.6-6.11   7.0-7.5   7.6-7.11   8.0-8.5
 
@@ -41,9 +45,9 @@ At its core, this conversion consists of a transformation in the hierarchical or
 
     9        93        88         83        77         72        67         62        59
 
-Note that the column names are the age range (in `years.months` format) of each age group.
+Note that the column names are the age range (in `years.months` format) of each age group. Also, reading left--to-right along the rows, each raw score maps onto only one standard score per age group, reflecting the many-to-one relationship between raw and standard scores.
 
-In the print-format lookup tables, these hierarchies are inverted. That is, there is one table per age group, and each of these tables holds the lookup columns for all tests. Furthermore, on the output side, one looks up raw scores in the rightward columns and reads to the left to find the associated standard scores. Here is the head of one such output table:
+In the print-format lookup tables, the input hierarchies are inverted. In the print-format tables, tests are a subordinate category of age groups. That is, there is one table per age group, and each of these tables holds the lookup columns for all tests. Furthermore, one looks up raw scores for a particular test in one of the the rightward columns, and reads to the left to find the associated standard score in a column on the left margin. Here is the head of one such output table:
 
     perc    ss    LSK-E   LSW-E  RHY-E  RLN-E  SEG-E  SPW-E 
 
@@ -67,7 +71,7 @@ In the print-format lookup tables, these hierarchies are inverted. That is, ther
 
     92      121    23      20      16      63      -       -
 
-Note that the column names are the acronym of each test.
+Note that the column names are now acronyms, one for each test. Some cells within these columns hold a range of raw scores, rather than a single score. This embodies the many-to-one relationship between raw and standard scores, in which each standard score may map onto more than one raw score.
 
 #### Executable Code
 
