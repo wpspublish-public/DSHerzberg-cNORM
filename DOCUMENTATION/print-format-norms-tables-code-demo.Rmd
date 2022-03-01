@@ -13,7 +13,7 @@ The norms development process (i.e., the process of creating raw-to-norm-score[^
 
 [^1]: In this general overview we refer to "norm scores", rather than specific types of norm scores, such as T scores or IQ-type standard scores. Once the discussion turns to the specific input files used by this script, we will refer to standard scores.
 
-1.  Modelling the raw-to-norm-score relationship using `cNORM` (or custom R code) and create basic lookup tables as output.
+1.  Modeling the raw-to-norm-score relationship using `cNORM` (or custom R code) and create basic lookup tables as output.
 2.  Applying manual smoothing to the basic lookup tables, as needed, to prepare the norms for clinical use.
 3.  Converting the modified basic lookup tables into print-format lookup tables (or, alternatively, into digital-format lookup tables).
 
@@ -21,7 +21,9 @@ Because Stage 2 is a manual modification of `cNORM` output, Stage 3 cannot be re
 
 It is important to keep in mind that the lookup relationship between raw and norm scores is many-to-one. That is, each raw score value maps onto one and only one norm score value, but each norm score value may map on to more than one raw score value. This many-to-one relationship will be made explicit in following narrative.
 
-At its core, the Stage 3 converstion consists of a transformation in the hierarchical organization of the data. In this script, the input tables embody a data hierarchy in which age groups are a subordinate category of tests. Thus, there is one table per test, and each of these tables holds the lookup columns for all age groups. In addition, one looks up raw scores in a column at the left margin of the table, and reads to the right to find the column with the associated standard scores for a particular age group. Here is the head of one such input table:
+At its core, Stage 3 is a transformation in the hierarchical organization of the data. In this script, the input tables embody a data hierarchy in which age groups are a subordinate category of tests. Thus, there is one table per test, and each of these tables holds the lookup columns for all age groups. In this documentation, we use the shorthand expressions `test>>age` or `ta` to label the this hierarchy.
+
+In addition, one looks up raw scores in a column at the left margin of the table, and reads to the right to find the column with the associated standard scores for a particular age group. Here is the head of one such input table:
 
     raw    5.0-5.3   5.4-5.7   5.8-5.11   6.0-6.5   6.6-6.11   7.0-7.5   7.6-7.11   8.0-8.5
 
@@ -72,6 +74,8 @@ In the print-format lookup tables, the input hierarchies are inverted. In the pr
     92      121    23      20      16      63      -       -
 
 Note that the column names are now acronyms, one for each test. Some cells within these columns hold a range of raw scores, rather than a single score. This embodies the many-to-one relationship between raw and standard scores, in which each standard score may map onto more than one raw score.
+
+In the detailed commentary, In order to track the transformation of the hierarchy through the code, we name objects with the suffix "ta" (test\>\>age) when they express the input hierarchy, and we use the suffix "at" (age\>\>test) to label the output hierarchy, and "flat" to denote an absence of either hierarchy.
 
 #### Executable Code
 

@@ -2,22 +2,6 @@ suppressMessages(library(here))
 suppressMessages(library(tidyverse))
 suppressMessages(library(writexl))
 
-# Thus, the initial transformation of
-# the work flow is to collapse the incremental sequence of raw scores so that
-# each standard score occupies only a single row in the output. Prior to this
-# transformation, there could be duplicate standard score rows. To preserve the
-# many-to-one raw to SS relationship, any ss row may map onto a range of raw
-# scores (e.g., 88-91)
-
-# The second transformation is to invert the hierarchy of the inputs, in which each test is a 
-# container for all age strats. This hierarchy is reversed in the output, such that after
-# transformation, each age strat is a container for all tests.
-
-# In order to track the transformation of the hierarchy through the code, we
-# name objects with the suffix "ta" (test>>age) when they express the input hierarchy,
-# and we use the suffix "at" (age>>test) to label the output hierarchy, and "flat" to
-# denote an absence of either hierarchy.
-
 # PART I: SET UP TOKENS AND INPUT FILES
 
 input_test_names <- c("lske", "lswe", "rhme", "rlne", "sege", "snwe")
@@ -54,6 +38,16 @@ age_strat <- input_files_ta[[1]] %>%
 # against the ss col on the left. The tables in this list preserve the
 # (test>>age) hiearchy of the input files, with one look-up row for each
 # possible SS value.
+
+
+# Thus, the initial transformation of
+# the work flow is to collapse the incremental sequence of raw scores so that
+# each standard score occupies only a single row in the output. Prior to this
+# transformation, there could be duplicate standard score rows. To preserve the
+# many-to-one raw to SS relationship, any ss row may map onto a range of raw
+# scores (e.g., 88-91)
+
+
 print_lookups_ta <- input_files_ta %>%
   map(~
         .x %>% 
