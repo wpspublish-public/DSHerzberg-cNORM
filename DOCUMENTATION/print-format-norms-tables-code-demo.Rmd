@@ -7,7 +7,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-#### Overview
+### Overview
 
 The norms development process (i.e., the process of creating raw-to-norm-score[^1] lookup tables) has three stages:
 
@@ -21,9 +21,11 @@ Because Stage 2 is a manual modification of `cNORM` output, Stage 3 cannot be re
 
 It is important to keep in mind that the lookup relationship between raw and norm scores is many-to-one. That is, each raw score value maps onto one and only one norm score value, but each norm score value may map on to more than one raw score value. This many-to-one relationship will be made explicit in following narrative.
 
-At its core, Stage 3 is a transformation in the hierarchical organization of the data. In this script, the input tables embody a data hierarchy in which age groups are a subordinate category of tests. Thus, there is one table per test, and each of these tables holds the lookup columns for all age groups. In this documentation, we use the shorthand expressions `test>>age` or `ta` to label the this hierarchy.
+At its core, Stage 3 is a transformation in the hierarchical organization of the data. The input tables embody a data hierarchy in which age groups are a subordinate category of tests. Thus, there is one table per test, and each of these tables holds the lookup columns for all age groups. In this documentation, we use the shorthand expressions `test>>age` or `ta` to label the input data hierarchy.
 
-In addition, one looks up raw scores in a column at the left margin of the table, and reads to the right to find the column with the associated standard scores for a particular age group. Here is the head of one such input table:
+There is also what we might call a "lookup direction" associated with the input tables. That is, one looks up raw scores in a column at the left margin of the table, and reads to the right to find the column with the associated standard scores for a particular age group.
+
+Below is the head of a typical input table, showing the `test>>age` data hierarchy and the left-to-right lookup direction.
 
     raw    5.0-5.3   5.4-5.7   5.8-5.11   6.0-6.5   6.6-6.11   7.0-7.5   7.6-7.11   8.0-8.5
 
@@ -49,7 +51,11 @@ In addition, one looks up raw scores in a column at the left margin of the table
 
 Note that the column names are the age range (in `years.months` format) of each age group. Also, reading left--to-right along the rows, each raw score maps onto only one standard score per age group, reflecting the many-to-one relationship between raw and standard scores.
 
-In the print-format lookup tables, the input hierarchies are inverted. In the print-format tables, tests are a subordinate category of age groups. That is, there is one table per age group, and each of these tables holds the lookup columns for all tests. Furthermore, one looks up raw scores for a particular test in one of the the rightward columns, and reads to the left to find the associated standard score in a column on the left margin. Here is the head of one such output table:
+In the print-format lookup tables, the input data hierarchies is inverted: tests are a subordinate category of age groups. That is, there is one table per age group, and each of these tables holds the lookup columns for all tests. We use the shorthand expressions `age>>test` or `at` to label the print-format data hierarchy.
+
+The input lookup direction is reversed in the print-format tables. That is, one looks up raw scores for a particular test in one of the the rightward columns, and reads to the left to find the associated standard score in a column on the left margin.
+
+Below is the head of a typical print-format table, showing the `age>>test` data hierarchy and the right-to-left lookup direction.
 
     perc    ss    LSK-E   LSW-E  RHY-E  RLN-E  SEG-E  SPW-E 
 
@@ -75,9 +81,9 @@ In the print-format lookup tables, the input hierarchies are inverted. In the pr
 
 Note that the column names are now acronyms, one for each test. Some cells within these columns hold a range of raw scores, rather than a single score. This embodies the many-to-one relationship between raw and standard scores, in which each standard score may map onto more than one raw score.
 
-In the detailed commentary, In order to track the transformation of the hierarchy through the code, we name objects with the suffix "ta" (test\>\>age) when they express the input hierarchy, and we use the suffix "at" (age\>\>test) to label the output hierarchy, and "flat" to denote an absence of either hierarchy.
+To track the transformation of the data hierarchy explicitly in the code, we name objects with the `ta` suffix when they express the input (`test>>age` )hierarchy. Similarly, we use the suffix `at` to name objects that embody the print-format (`age>>test`) hierarchy. The suffix `flat` is used to name objects that lack hierarchical structure.
 
-#### Executable Code
+### Executable Code
 
 ```{r print-format-norms, eval = FALSE}
 suppressMessages(library(here))
@@ -165,9 +171,25 @@ write_xlsx(print_lookups_at,
            )
 ```
 
-#### Commented Snippets
+### Commented Snippets
 
-Text.
+#### I. Load packages, set up tokens, read input files
 
-```{r print-format-norms, echo = 1:6, eval = F}
+Load packages for file path specification (`here`), data wrangling (`tidyverse`), and writing files in .xlsx format (`writexl`). Initialize tokens for test names, file paths, and other input parameters. Tokenization of these elements facilitates re-use of the script for different projects with different input parameters. Because these input parameters are used repeatedly throughout the script, specifying them as tokens enables the user to enter the values only once, thus limiting the influence of human data entry error on the script.
+
+```{r print-format-norms, echo = 1:10, eval = F}
+```
+
+Use `read_csv()` to read the input files into a list named `input_files_ta`. In this example there are six input files; therefore we `map()` is used to call `read_csv()` iteratively for each input file. The first argument to `map()` is the vector `input_test_names`, one of the tokens initialized at the outset of this script. This vector contains the text strings that distinguish the names of six input files, one for each test. The second argument to `map()` is the function to be applied to iteratively to the input files, namely `read_csv()`. Within `map()`, the function call is set off with the formula notation `~`.
+
+As `map()` iterates over the `input_test_names` vector, it passes one complete file path at a time to `read_csv()`. These file paths are strings, concatenated from tokens and sub-strings with `str_c()`. `map()` returns a list, `input_files_ta`, holding the input files as six data frames. `set_names()` applies the matching test-specific name to each element of the list.
+
+```{r print-format-norms, echo = 12:19, eval = F}
+```
+
+The print-format lookup tables include two static columns, one holding all possible standard scores, and the other holding the percentile rank associated with each standard score. Use `read_csv()` to read these columns into a data frame `perc_ss_cols`.
+
+To finalize the print-format tables, a vector containing the names of the age groups is required. These names exist in each of the input files, as column names. To obtain the required vector `age_strat`, we start with a single input file, which is extracted from the list `input_files_ta` with double-bracket `[[]]` subsetting. We call `select(-raw)` to drop the `raw` column, retaining only the age-group columns. We extract the names of these columns into a vector with `names()`.
+
+```{r print-format-norms, echo = 21:27, eval = F}
 ```
