@@ -341,7 +341,8 @@ output_file_path &lt;- &quot;OUTPUT-FILES/PRINT-FORMAT-NORMS-TABLES/&quot;</code
 ))))
 ) %&gt;% 
   set_names(input_test_names)</code></pre>
-<p>matching test-specific name to each element of the list.</p>
+<p>The print-format lookup tables include two static columns, one holding all possible standard scores, and the other holding the percentile rank associated with each standard score. Use <code>read_csv()</code> to read these columns into a data frame <code>perc_ss_cols</code>.</p>
+<p>To finalize the print-format tables, a vector containing the names of the age groups is required. These names exist in each of the input files, as column names. To obtain the required vector <code>age_strat</code>, we start with a single input file, which is extracted from the list <code>input_files_ta</code> with double-bracket <code>[[]]</code> subsetting. We call <code>select(-raw)</code> to drop the <code>raw</code> column, retaining only the age-group columns. We extract the names of these columns into a vector with <code>names()</code>.</p>
 <pre class="r"><code>perc_ss_cols &lt;- suppressMessages(read_csv(here(str_c(
   input_file_path, &quot;perc-ss-cols.csv&quot;
 ))))
@@ -349,6 +350,34 @@ output_file_path &lt;- &quot;OUTPUT-FILES/PRINT-FORMAT-NORMS-TABLES/&quot;</code
 age_strat &lt;- input_files_ta[[1]] %&gt;% 
   select(-raw) %&gt;% 
   names()</code></pre>
+</div>
+<div id="ii.-impose-print-style-formatting-on-the-input-tables" class="section level4">
+<h4>II. Impose print-style formatting on the input tables</h4>
+<p>In the next snippet, we again use <code>map()</code> for iterative processing of multiple tables held in a list. Here, <code>map()</code> is used to apply a long pipeline of functions to the tables held in the list <code>input_files_ta</code>. This list is piped into <code>map()</code>, where it is represented by the <code>.x</code> token, which sits at the beginning of the pipeline of functions set off by <code>~</code>. <code>map()</code> thus applies the function chain iteratively to each element of <code>.x</code>, returning the list of transformed tables, <code>print_lookups_ta</code>. The suffix of this output list denotes that the tables at this stage retain the <code>test&gt;&gt;age</code> data hierarchy.</p>
+<p>We use <code>pivot_longer()</code> to transform each input table to a long, multilevel format, in which a set of standard scores (one for each age group) is nested within each value of raw score. The first argument to <code>pivot_longer()</code>, which we specify with <code>contains(&quot;-&quot;)</code>, names the columns to be pivoted to long format (i.e., the columns in the input table that contain the standard scores for each age group). The second argument, <code>names_to = &quot;age_strat&quot;</code>, designates a new column whose rows, in long format, will hold the names of the pivoted columns. The third argument, <code>values_to = &quot;ss&quot;</code>, designates a new column whose rows, in long format, will hold the cell values (that is, the standard scores) contained in the pivoted columns.</p>
+<p>Here we are excluding the <code>raw</code> column from the pivot, meaning that in the long table, <code>raw</code> remains in the left-most column and becomes a Level 2 variable (in nomenclature of multilevel modeling). The rows of <code>raw</code> are expanded such that each raw score value has eight rows, one for each of the eight age groups whose values appear in the <code>age_strat</code> column. The new columns, <code>age_strat</code> and <code>ss</code>, are now Level 1 variables, because they are nested within the Level 2 variable <code>raw</code>. We then use <code>arrange()</code> to sort the data by <code>age_strat</code>.</p>
+<pre><code>raw  age_strat  ss
+
+2    6.6-6.11   57
+
+2    7.0-7.5    53
+
+2    7.6-7.11   49
+
+2    8.0-8.5    46
+
+3    5.0-5.3    77
+
+3    5.4-5.7    74
+
+3    5.8-5.11   70
+
+3    6.0-6.5    65</code></pre>
+<pre class="r"><code>print_lookups_ta &lt;- input_files_ta %&gt;%
+  map(~
+        .x %&gt;% 
+  pivot_longer(contains(&quot;-&quot;), names_to = &quot;age_strat&quot;, values_to = &quot;ss&quot;) %&gt;%
+  arrange(age_strat) %&gt;%</code></pre>
 </div>
 </div>
 <div class="footnotes">

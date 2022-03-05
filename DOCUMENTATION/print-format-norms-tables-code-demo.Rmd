@@ -193,3 +193,36 @@ To finalize the print-format tables, a vector containing the names of the age gr
 
 ```{r print-format-norms, echo = 21:27, eval = F}
 ```
+
+#### II. Impose print-style formatting on the input tables
+
+In the next snippet, we again use `map()` for iterative processing of multiple tables held in a list. Here, `map()` is used to apply a long pipeline of functions to the tables held in the list `input_files_ta`. This list is piped into `map()`, where it is represented by the `.x` token, which sits at the beginning of the pipeline of functions set off by `~`. `map()` thus applies the function chain iteratively to each element of `.x`, returning the list of transformed tables, `print_lookups_ta`. The suffix of this output list denotes that the tables at this stage retain the `test>>age` data hierarchy.
+
+We use `pivot_longer()` to transform each input table to a long, multilevel format, in which a set of standard scores (one for each age group) is nested within each value of raw score. The first argument to `pivot_longer()`, which we specify with `contains("-")`, names the columns to be pivoted to long format (i.e., the columns in the input table that contain the standard scores for each age group). The second argument, `names_to = "age_strat"`, designates a new column whose rows, in long format, will hold the names of the pivoted columns. The third argument, `values_to = "ss"`, designates a new column whose rows, in long format, will hold the cell values (that is, the standard scores) contained in the pivoted columns.
+
+Here we are excluding the `raw` column from the pivot, meaning that in the long table, `raw` remains in the left-most column and becomes a Level 2 variable (in nomenclature of multilevel modeling). The rows of `raw` are expanded such that each raw score value has eight rows, one for each of the eight age groups whose values appear in the `age_strat` column. The new columns, `age_strat` and `ss`, are now Level 1 variables, because they are nested within the Level 2 variable `raw`. We then use `arrange()` to sort the data by `age_strat`.
+
+To visualize the transformation, here are a few rows from the long-format table:
+
+    raw  age_strat  ss
+
+    2    6.6-6.11   57
+
+    2    7.0-7.5    53
+
+    2    7.6-7.11   49
+
+    2    8.0-8.5    46
+
+    3    5.0-5.3    77
+
+    3    5.4-5.7    74
+
+    3    5.8-5.11   70
+
+    3    6.0-6.5    65
+
+As noted above, each value of `raw` now has eight rows, one for each value of `age_strat`. Each value of `age_strat` is paired with its associated value of `ss`, taken from the matching column of the wide-format input table. The sequence of `age_strat` values repeats itself for each new value of `raw`, going down the table.
+
+```{r print-format-norms, echo = 29:33, eval = F}
+```
