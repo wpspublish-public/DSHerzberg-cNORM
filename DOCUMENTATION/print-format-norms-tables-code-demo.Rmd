@@ -226,3 +226,8 @@ As noted above, each value of `raw` now has eight rows, one for each value of `a
 
 ```{r print-format-norms, echo = 29:33, eval = F}
 ```
+
+The current `ss` column is the antecedent of the left-ward standard-score lookup column of the print-format table. As such, it needs to contain all possible values of `ss`, sorted descending, with no duplicates. To get it to this state, we call `tidyr::complete()`, which fills in missing values of a variable, adding a new row for each filled-in value. As an argument to `complete()`, we pass `ss = 40:130`, which adds rows for any values in the range of `40` to `130` that are missing from the current `ss` column. To ensure that values are filled in consecutively within each age group, we `group_by(age_strat)` before calling `complete()`.
+
+```{r print-format-norms, echo = 34:35, eval = F}
+```
