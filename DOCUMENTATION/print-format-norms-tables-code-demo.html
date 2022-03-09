@@ -383,6 +383,25 @@ age_strat &lt;- input_files_ta[[1]] %&gt;%
 <p>The current <code>ss</code> column is the antecedent of the left-ward standard-score lookup column of the print-format table. As such, it needs to contain all possible values of <code>ss</code>, sorted descending, with no duplicates. To get it to this state, we call <code>tidyr::complete()</code>, which fills in missing values of a variable, adding a new row for each filled-in value. As an argument to <code>complete()</code>, we pass <code>ss = 40:130</code>, which adds rows for any values in the range of <code>40</code> to <code>130</code> that are missing from the current <code>ss</code> column. To ensure that values are filled in consecutively within each age group, we <code>group_by(age_strat)</code> before calling <code>complete()</code>.</p>
 <pre class="r"><code>  group_by(age_strat) %&gt;%
   complete(ss = 40:130) %&gt;%</code></pre>
+<p>As noted earlier, the lookup relationship between raw and standard scores is many-to-one, meaning that each value of <code>ss</code> may map onto multiple values of <code>raw</code>. This mapping is represented explicitly in the current data object, where consecutive rows may share the same <code>ss</code> value while being each associated with a different value of <code>raw</code>. Below are a set of rows from the current data object, showing the many-to-one mapping of five different values of <code>raw</code> to the single <code>ss</code> value of 130.</p>
+<pre><code>age_strat    ss   raw
+
+5.0-5.3     119    NA
+5.0-5.3     120    16
+5.0-5.3     121    NA
+5.0-5.3     122    NA
+5.0-5.3     123    17
+5.0-5.3     124    NA
+5.0-5.3     125    NA
+5.0-5.3     126    18
+5.0-5.3     127    NA
+5.0-5.3     128    NA
+5.0-5.3     129    19
+5.0-5.3     130    20
+5.0-5.3     130    21
+5.0-5.3     130    22
+5.0-5.3     130    23
+5.0-5.3     130    24</code></pre>
 </div>
 </div>
 <div class="footnotes">

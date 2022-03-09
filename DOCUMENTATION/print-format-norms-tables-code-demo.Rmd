@@ -231,3 +231,25 @@ The current `ss` column is the antecedent of the left-ward standard-score lookup
 
 ```{r print-format-norms, echo = 34:35, eval = F}
 ```
+
+As noted earlier, the lookup relationship between raw and standard scores is many-to-one, meaning that each value of `ss` may map onto multiple values of `raw`. This mapping is represented explicitly in the current data object, where consecutive rows may share the same `ss` value while being each associated with a different value of `raw`. Below are a set of rows from the current data object, showing the many-to-one mapping of five different values of `raw` to the single `ss` value of 130.
+ 
+ 
+    age_strat    ss   raw
+
+    5.0-5.3     119    NA
+    5.0-5.3     120    16
+    5.0-5.3     121    NA
+    5.0-5.3     122    NA
+    5.0-5.3     123    17
+    5.0-5.3     124    NA
+    5.0-5.3     125    NA
+    5.0-5.3     126    18
+    5.0-5.3     127    NA
+    5.0-5.3     128    NA
+    5.0-5.3     129    19
+    5.0-5.3     130    20
+    5.0-5.3     130    21
+    5.0-5.3     130    22
+    5.0-5.3     130    23
+    5.0-5.3     130    24
