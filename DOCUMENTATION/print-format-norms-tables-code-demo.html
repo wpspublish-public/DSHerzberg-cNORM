@@ -402,6 +402,37 @@ age_strat &lt;- input_files_ta[[1]] %&gt;%
 5.0-5.3     130    22
 5.0-5.3     130    23
 5.0-5.3     130    24</code></pre>
+<p>In the finalized print-format lookup table, there is only a single row for each possible value of standard score. In example above, where there are five rows mapping <code>ss = 130</code> onto five consecutive values of <code>raw</code>, we need to collapse multiple values of <code>raw</code> into a single range of raw scores. We can then replace the five rows above with a single row in which <code>ss</code> is <code>130</code> and <code>raw</code> is <code>20-24</code>.</p>
+<p>In addition to the one-to-many mapping for <code>ss = 130</code>, the rows above include one-to-one mappings for other values of <code>ss</code> (e.g., <code>ss = 126</code> maps <em>only</em> to <code>raw = 18</code>). In the next code snippet, we use <code>dplyr::filter()</code> to collapse the table vertically and retain rows according to the following rules:</p>
+<ul>
+<li><p><strong>One-to-one</strong> <code>raw</code> to <code>ss</code> mapping: retain that single row.</p></li>
+<li><p><strong>Many-to-one</strong> <code>raw</code> to <code>ss</code> mapping: retain the <em>first</em> and <em>last</em> rows of the series, which contain, respectively, the values of <code>raw</code> that are the lower and upper bounds of the required raw-score range.</p></li>
+</ul>
+<p>To execute this transformation, we first re-group the data object hierarchically (<code>group_by(age_strat, ss)</code>), so that ranges of <code>raw</code> can be assembled within each value of <code>ss</code>, and, in turn, within each <code>age_strat</code>. After grouping, the one-to-one mappings are single-row groups, and the many-to-one mappings are multi-row groups (in which each row has an identical value of <code>ss</code>).</p>
+<p><code>filter()</code> operates on these groups according to a complex predicate: <code>n() == 1 | n() &gt; 1 &amp; row_number() %in% c(1, n())</code>. The predicate makes use of <code>dplyr::n()</code>, which returns the number of rows in the groups defined by <code>group_by()</code>. The single-row groups are captured by the expression <code>n() == 1</code>.</p>
+<p>To get the first and last rows of the multi-row groups, we use the expression <code>n() &gt; 1 &amp; row_number() %in% c(1, n()))</code>. The LHS side of this expression (<code>n() &gt; 1</code>) captures all rows of the multi-row groups. The RHS of this expression (<code>row_number()  %in% c(1, n()</code>) uses <code>row_number()</code> to retain only the first and last rows of the multi-row groups. The expression captures only the two rows where <code>row_number() == 1</code> (the first row) or <code>row_number == n()</code> (i.e, the row number is equal to the total number of rows in the group, which is also the row number of the <em>last</em> row of the group). Rather than specify these latter two sub-predicates separately, we can combine them by using <code>%in%</code> to specify that <code>row_number()</code> is equal to <em>either</em> of the two elements of the vector <code>c(1, n())</code>.</p>
+<p>After applying the <code>filter()</code> step, the set of rows depicted above appears as follows:</p>
+<pre><code>age_strat    ss   raw
+
+5.0-5.3     119    NA
+5.0-5.3     120    16
+5.0-5.3     121    NA
+5.0-5.3     122    NA
+5.0-5.3     123    17
+5.0-5.3     124    N
+5.0-5.3     125    NA
+5.0-5.3     126    18
+5.0-5.3     127    NA
+5.0-5.3     128    NA
+5.0-5.3     129    19
+5.0-5.3     130    20
+5.0-5.3     130    24</code></pre>
+<p>Note that the group of rows for <code>ss = 130</code>, which previously included five rows, now consists of only two: those containing the values of raw for the lower and upper bounds of the required raw score range (<code>20-24</code>). All other rows in the example are single row groups, representing one-to-one <code>raw</code> to <code>ss</code> mappings.</p>
+<pre class="r"><code>  group_by(age_strat, ss) %&gt;%
+  filter(n() == 1 | n() &gt; 1 &amp; row_number()  %in% c(1, n())) %&gt;%
+  summarize(raw = str_c(raw, collapse = &#39;--&#39;)) %&gt;%
+  mutate(across(raw, ~ case_when(is.na(.x) ~ &#39;-&#39;, TRUE ~ .x))) %&gt;%
+  arrange(age_strat, desc(ss)) %&gt;%</code></pre>
 </div>
 </div>
 <div class="footnotes">

@@ -3,7 +3,8 @@ temp1 <- input_files_ta[[6]] %>%
         arrange(age_strat) %>%
         group_by(age_strat) %>%
         complete(ss = 40:130) %>%
-        group_by(age_strat, ss) 
+        group_by(age_strat, ss) %>% 
+        filter(n() == 1 | n() > 1 & row_number()  %in% c(1, n()))
 
 temp2 <- temp1[80:95, ]
 
