@@ -402,7 +402,7 @@ age_strat &lt;- input_files_ta[[1]] %&gt;%
 5.0-5.3     130    22
 5.0-5.3     130    23
 5.0-5.3     130    24</code></pre>
-<p>In the finalized print-format lookup table, there is only a single row for each possible value of standard score. In example above, where there are five rows mapping <code>ss = 130</code> onto five consecutive values of <code>raw</code>, we need to collapse multiple values of <code>raw</code> into a single range of raw scores. We can then replace the five rows above with a single row in which <code>ss</code> is <code>130</code> and <code>raw</code> is <code>20-24</code>.</p>
+<p>In the finalized print-format lookup table, there is only a single row for each possible value of standard score. In the example above, where there are five rows mapping <code>ss = 130</code> onto five consecutive values of <code>raw</code>, we need to collapse multiple values of <code>raw</code> into a single range of raw scores. We can then replace the five rows above with a single row in which <code>ss</code> is <code>130</code> and <code>raw</code> is <code>20-24</code>.</p>
 <p>In addition to the one-to-many mapping for <code>ss = 130</code>, the rows above include one-to-one mappings for other values of <code>ss</code> (e.g., <code>ss = 126</code> maps <em>only</em> to <code>raw = 18</code>). In the next code snippet, we use <code>dplyr::filter()</code> to collapse the table vertically and retain rows according to the following rules:</p>
 <ul>
 <li><p><strong>One-to-one</strong> <code>raw</code> to <code>ss</code> mapping: retain that single row.</p></li>
@@ -419,7 +419,7 @@ age_strat &lt;- input_files_ta[[1]] %&gt;%
 5.0-5.3     121    NA
 5.0-5.3     122    NA
 5.0-5.3     123    17
-5.0-5.3     124    N
+5.0-5.3     124    NA
 5.0-5.3     125    NA
 5.0-5.3     126    18
 5.0-5.3     127    NA
@@ -428,17 +428,34 @@ age_strat &lt;- input_files_ta[[1]] %&gt;%
 5.0-5.3     130    20
 5.0-5.3     130    24</code></pre>
 <p>Note that the group of rows for <code>ss = 130</code>, which previously included five rows, now consists of only two: those containing the values of raw for the lower and upper bounds of the required raw score range (<code>20-24</code>). All other rows in the example are single row groups, representing one-to-one <code>raw</code> to <code>ss</code> mappings.</p>
+<p>Because the data object is grouped by <code>ss</code>, we can call <code>dplyr::summarize()</code> to further collapse the table so there is a single row for each possible value of <code>ss</code>. <code>summarize()</code> operates within groups, and is used to aggregate the values of a variable, returning a new raw column containing a single summary value for each group.<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a></p>
+<p>As an argument to <code>summarize()</code>, we pass the expression <code>raw = str_c(raw, collapse = &#39;--&#39;)</code>, which returns the required values for both types of <code>raw</code> to <code>ss</code> mappings. Note that the RHS is wrapped in <code>str_c</code>, meaning that numbers will be formatted as strings in the new <code>raw</code> column. One-to-one mappings are represented in the current object as single rows, so the summarizing expression simply returns the “old” value of <code>raw</code> in that row. Many-to-one mappings are now represented by two-row groups, with the rows containing the lower and upper bounds of the required raw-score ranges. For these two-row groups, <code>str_c()</code> joins the two “old” values of <code>raw</code>, collapsing them into a single string with the separator <code>--</code>.<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a></p>
+<p>Because the mapping of <code>raw</code> to <code>ss</code> is many-to-one, there may be values of <code>ss</code> that are not mapped onto any value of <code>raw</code>. In the rows shown above, for example, <code>ss = 119</code> is “unmapped” (i.e., <code>raw = NA</code> for <code>ss = 119</code>). To format the <code>raw</code> column properly for final output, we use <code>mutate(across(case_when()))</code> to recode <code>NA</code> to <code>-</code> in the <code>raw</code> column. We then use <code>arrange()</code> to sort the table ascending by <code>age_strat</code>, and descending by <code>ss</code>.</p>
 <pre class="r"><code>  group_by(age_strat, ss) %&gt;%
   filter(n() == 1 | n() &gt; 1 &amp; row_number()  %in% c(1, n())) %&gt;%
   summarize(raw = str_c(raw, collapse = &#39;--&#39;)) %&gt;%
   mutate(across(raw, ~ case_when(is.na(.x) ~ &#39;-&#39;, TRUE ~ .x))) %&gt;%
   arrange(age_strat, desc(ss)) %&gt;%</code></pre>
+<p>Recall that the original data input to this process was a wide-format data frame (i.e., an element of the list <code>input_files_ta</code>). We pivoted this input to long format, so that we could transform it by applying <code>dplyr</code> functions on a row-wise basis. As a result, the current data object is a long-format, three-column table whose cell values are formatted as required for the print-format lookup table. The <code>ss</code> column thus contains all possible values of standard score in descending order (nested within each value of <code>age_strat</code>).</p>
+<p>To prepare the final output, we call <code>pivot_wider()</code> to return the data object to wide format. We include two of the three existing columns in arguments to <code>pivot_wider()</code>: <code>names_from = age_strat</code>, to specify that names for the new columns in the wide table are to be drawn from the existing <code>age_strat</code> column; and <code>values_from = raw</code>, to indicate that cell values for the new columns are to be drawn from the existing <code>raw</code> column. <code>pivot_wider()</code> thus returns a wide table in which the existing <code>ss</code> column becomes the left-most column, the existing <code>age_strat</code> and <code>raw</code> columns are dropped, and the new rightward columns are named for the age groups and contain the raw-score lookup values corresponding to each standard score. Here is the head of the resulting table:</p>
+<pre><code>ss   5.0-5.3    5.4-5.7   5.8-5.11   6.0-6.5   6.6-6.11   7.0-7.5   7.6-7.11   8.0-8.5   8.6-9.3 
+
+130   20--32    21--32    23--32     26--32    28--32     30--32    32         -         -        
+129   19        -         -          25        -          -         31         32        -        
+128   -         -         -          -         27         29        -          -         -        
+127   -         20        22         24        -          -         -          -         32       
+126   18        -         -          -         -          -         30         -         -        
+125   -         -         -          -         26         28        -          31        -        </code></pre>
+<pre class="r"><code>  pivot_wider(names_from = age_strat,
+              values_from = raw) %&gt;%</code></pre>
 </div>
 </div>
 <div class="footnotes">
 <hr />
 <ol>
 <li id="fn1"><p>In this general overview we refer to “norm scores”, rather than specific types of norm scores, such as T scores or IQ-type standard scores. Once the discussion turns to the specific input files used by this script, we will refer to standard scores.<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+<li id="fn2"><p>To avoid confusion, keep in mind that the “new” <code>raw</code> column summarizes values in the “old” <code>raw</code> column, which is dropped from the data object returned by <code>summarize()</code>.<a href="#fnref2" class="footnote-back">↩︎</a></p></li>
+<li id="fn3"><p>We use two dashes (<code>--</code>), instead of a single dash, to prevent the score ranges from being mistakenly read as dates when the saved output is opened in MS Excel.<a href="#fnref3" class="footnote-back">↩︎</a></p></li>
 </ol>
 </div>
 

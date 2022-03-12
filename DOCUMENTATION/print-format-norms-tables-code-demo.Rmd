@@ -253,7 +253,7 @@ As noted earlier, the lookup relationship between raw and standard scores is man
     5.0-5.3     130    23
     5.0-5.3     130    24
 
-In the finalized print-format lookup table, there is only a single row for each possible value of standard score. In example above, where there are five rows mapping `ss = 130` onto five consecutive values of `raw`, we need to collapse multiple values of `raw` into a single range of raw scores. We can then replace the five rows above with a single row in which `ss` is `130` and `raw` is `20-24`.
+In the finalized print-format lookup table, there is only a single row for each possible value of standard score. In the example above, where there are five rows mapping `ss = 130` onto five consecutive values of `raw`, we need to collapse multiple values of `raw` into a single range of raw scores. We can then replace the five rows above with a single row in which `ss` is `130` and `raw` is `20-24`.
 
 In addition to the one-to-many mapping for `ss = 130`, the rows above include one-to-one mappings for other values of `ss` (e.g., `ss = 126` maps *only* to `raw = 18`). In the next code snippet, we use `dplyr::filter()` to collapse the table vertically and retain rows according to the following rules:
 
@@ -269,27 +269,55 @@ To get the first and last rows of the multi-row groups, we use the expression `n
 
 After applying the `filter()` step, the set of rows depicted above appears as follows:
 
-```
-age_strat    ss   raw
+    age_strat    ss   raw
 
-5.0-5.3     119    NA
-5.0-5.3     120    16
-5.0-5.3     121    NA
-5.0-5.3     122    NA
-5.0-5.3     123    17
-5.0-5.3     124    NA
-5.0-5.3     125    NA
-5.0-5.3     126    18
-5.0-5.3     127    NA
-5.0-5.3     128    NA
-5.0-5.3     129    19
-5.0-5.3     130    20
-5.0-5.3     130    24
-```
+    5.0-5.3     119    NA
+    5.0-5.3     120    16
+    5.0-5.3     121    NA
+    5.0-5.3     122    NA
+    5.0-5.3     123    17
+    5.0-5.3     124    NA
+    5.0-5.3     125    NA
+    5.0-5.3     126    18
+    5.0-5.3     127    NA
+    5.0-5.3     128    NA
+    5.0-5.3     129    19
+    5.0-5.3     130    20
+    5.0-5.3     130    24
+
 Note that the group of rows for `ss = 130`, which previously included five rows, now consists of only two: those containing the values of raw for the lower and upper bounds of the required raw score range (`20-24`). All other rows in the example are single row groups, representing one-to-one `raw` to `ss` mappings.
 
+Because the data object is grouped by `ss`, we can call `dplyr::summarize()` to further collapse the table so there is a single row for each possible value of `ss`. `summarize()` operates within groups, and is used to aggregate the values of a variable, returning a new raw column containing a single summary value for each group.[^2]
 
+[^2]: To avoid confusion, keep in mind that the "new" `raw` column summarizes values in the "old" `raw` column, which is dropped from the data object returned by `summarize()`.
 
+As an argument to `summarize()`, we pass the expression `raw = str_c(raw, collapse = '--')`, which returns the required values for both types of `raw` to `ss` mappings. Note that the RHS is wrapped in `str_c`, meaning that numbers will be formatted as strings in the new `raw` column. One-to-one mappings are represented in the current object as single rows, so the summarizing expression simply returns the "old" value of `raw` in that row. Many-to-one mappings are now represented by two-row groups, with the rows containing the lower and upper bounds of the required raw-score ranges. For these two-row groups, `str_c()` joins the two "old" values of `raw`, collapsing them into a single string with the separator `--`.[^3]
+
+[^3]: We use two dashes (`--`), instead of a single dash, to prevent the score ranges from being mistakenly read as dates when the saved output is opened in MS Excel.
+
+Because the mapping of `raw` to `ss` is many-to-one, there may be values of `ss` that are not mapped onto any value of `raw`. In the rows shown above, for example,  `ss = 119` is “unmapped” (i.e., `    raw = NA` for `ss = 119`). To format the `raw` column properly for final output, we use `mutate(across(case_when()))` to recode `NA` to `-` in the `raw` column. We then use `arrange()` to sort the table ascending by `age_strat`, and descending by `ss`.
 
 ```{r print-format-norms, echo = 36:40, eval = F}
 ```
+
+Recall that the original data input to this process was a wide-format data frame (i.e., an element of the list `input_files_ta`). We pivoted this input to long format, so that we could transform it by applying `dplyr` functions on a row-wise basis. As a result, the current data object is a long-format, three-column table whose cell values are formatted as required for the print-format lookup table. The `ss` column thus contains all possible values of standard score in descending order (nested within each value of `age_strat`).
+
+To prepare the final output, we call `pivot_wider()` to return the data object to wide format. We include two of the three existing columns in arguments to `pivot_wider()`: `names_from = age_strat`, to specify that names for the new columns in the wide table are to be drawn from the existing `age_strat` column; and `values_from = raw`, to indicate that cell values for the new columns are to be drawn from the existing `raw` column. `pivot_wider()` thus returns a wide table in which the existing `ss` column becomes the left-most column, the existing `age_strat` and `raw` columns are dropped, and the new rightward columns are named for the age groups and contain the raw-score lookup values corresponding to each standard score. Here is the head of the resulting table:
+
+```
+ss   5.0-5.3    5.4-5.7   5.8-5.11   6.0-6.5   6.6-6.11   7.0-7.5   7.6-7.11   8.0-8.5   8.6-9.3 
+
+130   20--32    21--32    23--32     26--32    28--32     30--32    32         -         -        
+129   19        -         -          25        -          -         31         32        -        
+128   -         -         -          -         27         29        -          -         -        
+127   -         20        22         24        -          -         -          -         32       
+126   18        -         -          -         -          -         30         -         -        
+125   -         -         -          -         26         28        -          31        -        
+```
+
+
+
+```{r print-format-norms, echo = 41:42, eval = F}
+```
+
+
