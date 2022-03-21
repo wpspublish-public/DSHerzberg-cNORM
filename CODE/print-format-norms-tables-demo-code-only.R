@@ -54,14 +54,9 @@ age_strat_cols_ta <-  print_lookups_ta %>%
                select(perc, ss,!!sym(.x)), .y = .x) %>%
          set_names(age_strat))
 
-
-# create vec of names (length = 54) of all crossings of age_strat and test names.
 age_test_names_flat <- cross2(age_strat, input_test_names) %>% 
   map_chr(str_c, collapse = "_")
 
-# flatten age_strat_dfs so that it is a one-level list holding all 54 single
-# age-strat lookups spread over the six tests. rename the list elements with
-# as_tn_names so that each element (df) of the list can be identified.
 age_test_cols_flat <- flatten(age_strat_cols_ta) %>% 
   set_names(age_test_names_flat)
 

@@ -323,7 +323,7 @@ At this point, `map()` finishes iterating, and the list of input tables has been
 
 #### III. Flatten tables with the `test>>age` hierarchy into a set of age-specific columns with no hierarchy.
 
-The code in Section II accomplished one part of the transformation: changing the format of the raw score columns into that requried for the print-format lookup tales. But the tables in the output list of that code section, `print_lookups_ta`, still retain the `test>>age` hierarchy of the input tables.
+The code in Section II accomplished one part of the transformation: changing the format of the raw score columns into that requried for the print-format lookup tables. But the tables in the output list of that code section, `print_lookups_ta`, still retain the `test>>age` hierarchy of the input tables.
 
 Completing the transformtion into print format involves two additional steps: flattening the `test>>age` into a non-hierarchical structure, and then restructuring again to yield the `age>>test` data hierarchy required for final output.
 
@@ -338,9 +338,12 @@ After the inner `map()` call iterates completely over `age_strat`, it returns a 
 ```{r print-format-norms, echo = 49:55, eval = F}
 ```
 
-Before creating the `age>>test` data hierarchy required for the print-format lookup tables, the existing `test>>age` hierarchy must be removed. Essentially this involves collapsing the "list of lists" structure into a single list, a process known as flattening. The single list that results will contain 54 elements: the nine age-group-specific three-column lookup tables for six different tests. These 54 tables must be identified by their age group and test. Accordingly we create a vector of 54 names using `purrr::cross2`.
+Before creating the `age>>test` data hierarchy required for the print-format lookup tables, the existing `test>>age` hierarchy must be removed. Essentially this involves collapsing the "list of lists" structure into a single list, a process known as flattening. The single list that results will contain 54 elements: for each of six different tests, there are nine age-group-specific three-column lookup tables. These 54 tables must be identified by their age group and test. Accordingly we use `purrr::cross2()` to create all possible combinations of the `input_test_names` and `age_strat` vectors. `cross2()` returns a list, not the required vector of names (strings). To get the list into the vector format, we call `map_chr()`, which returns a character vector, passing `str_c()` to join the test-age group pairs into single strings. The resulting vector of names is `age_test_names_flat`.
+
+We then apply `purrr::flatten()` to the list-of-lists `age_strat_cols_ta`, which removes one level of list structure, along with the `test>>age` data structure. The result is the 54-element list `age_test_cols_flat`, whose name reflects the removal of the `test>>age` structure. We use `set_names(age_test_names_flat)` to preserve identification of the 54 elements.
 
 ```{r print-format-norms, echo = 57:61, eval = F}
 ```
 
+Once all 54 lookup tables required for output are held in a single flattened list, it is relatively simple to apply the `age>>test` data hierarchy. The input hierarchy was was essentially a subset structure, in which age-groups were subsetted by their associated tests.
 
