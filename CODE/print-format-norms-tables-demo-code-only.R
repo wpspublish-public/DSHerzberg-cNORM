@@ -2,8 +2,6 @@ suppressMessages(library(here))
 suppressMessages(library(tidyverse))
 suppressMessages(library(writexl))
 
-# PART I: SET UP TOKENS AND INPUT FILES
-
 input_test_names <- c("lske", "lswe", "rhme", "rlne", "sege", "snwe")
 output_test_names <- c("LSK-E", "LSW-E", "RHY-E", "RLN-E", "SEG-E", "SPW-E")
 tod_form <- "TOD-E"
@@ -11,7 +9,6 @@ norm_type <- "age"
 input_file_path <- "INPUT-FILES/PRINT-FORMAT-NORMS-TABLES/"
 output_file_path <- "OUTPUT-FILES/PRINT-FORMAT-NORMS-TABLES/"
 
-# read the six input files (test>>age) into a list.
 input_files_ta <- map(
   input_test_names,
   ~
@@ -21,32 +18,13 @@ input_files_ta <- map(
 ) %>% 
   set_names(input_test_names)
 
-# read in static columns with all possible SS mapped onto associated percentiles
 perc_ss_cols <- suppressMessages(read_csv(here(str_c(
   input_file_path, "perc-ss-cols.csv"
 ))))
 
-# read in a char vector of age-strats, by extracting these elements from the col
-# names of one of the input dfs
 age_strat <- input_files_ta[[1]] %>% 
   select(-raw) %>% 
   names()
-
-# print_look_up_list_ta contains the transformed input files. These are new
-# lookup tables for each test, in the print format. Each table has lookup cols
-# for all age strats, each containing raw scores (or ranges) that are looked up
-# against the ss col on the left. The tables in this list preserve the
-# (test>>age) hiearchy of the input files, with one look-up row for each
-# possible SS value.
-
-
-# Thus, the initial transformation of
-# the work flow is to collapse the incremental sequence of raw scores so that
-# each standard score occupies only a single row in the output. Prior to this
-# transformation, there could be duplicate standard score rows. To preserve the
-# many-to-one raw to SS relationship, any ss row may map onto a range of raw
-# scores (e.g., 88-91)
-
 
 print_lookups_ta <- input_files_ta %>%
   map(~
@@ -68,13 +46,6 @@ print_lookups_ta <- input_files_ta %>%
 ) %>% 
   set_names(input_test_names)
 
-# age_strat_cols_ta is a transformation of print_lookup_list using nested map
-# calls. The table for each test of print_look_up_list is broken down into
-# separate look-up dfs, one for each age_strat col. So age_strat_cols_ta is a
-# list of lists, the top level being a list for each test, and the lower level
-# being the list of age-strat specific lookup tables within each test. We say
-# that the (test>>age) hierarchy of the input is preserved here, because the
-# lowest level col labels are age-strat labels, as they are on the input files.
 age_strat_cols_ta <-  print_lookups_ta %>%
   map( ~
          map(age_strat,
