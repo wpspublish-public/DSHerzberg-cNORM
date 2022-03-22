@@ -60,40 +60,12 @@ age_test_names_flat <- cross2(age_strat, input_test_names) %>%
 age_test_cols_flat <- flatten(age_strat_cols_ta) %>% 
   set_names(age_test_names_flat)
 
-# age_test_cols_at reconstitutes a new two-level list from the flattened
-# as_tn_dfs. Whereas in age_strat_cols_ta, the hierarchy was test --> age_strat,
-# in age_test_cols_at, that hierarchy is reversed to age_strat --> test, which
-# is the hierarchy required for the final output. Now we have a list of lists in
-# which the top level is a list for each age_strat, and within those lists are
-# the list of lookup tables for that age_strat, for all six tests. This
-# transformation is accomplished via purrr::keep(), which subsets list elements.
-# Using map(), we subset age_test_cols_flat 9 times, mapping across the 9
-# elements of age_strat. str_detect() matches the pattern supplied by .x (here a
-# particular age_strat) against the names of the flattened age_test_cols_flat,
-# and returns list elements whose names contain a match for the the pattern
-# (i.e., a particular age-strat). These retained elements are complete sets of
-# test-specific lookup columns, one set for each agestrat, giving the new
-# two-level list the desired output hierarchy (age_strat --> test).
 age_test_cols_at <- map(
   age_strat,
   ~
   keep(age_test_cols_flat, str_detect(names(age_test_cols_flat), .x))
 )
 
-# print_lookups_at is a transformation of age_test_cols_at into a list suitable
-# for writing out as a tabbed .xlsx file. Recall that each element of
-# age_test_cols_at is a list of the test-wise look up dfs for each
-# age_strat. reduce() joins the list of dfs into a single df with right-ward raw
-# score lookup cols for each test within each age_strat. The call of rename_with
-# renames the raw score cols of the newly joined dfs, taking advantage of a
-# shorthand in which the renaming function (the first argument of rename_with is
-# specified as the vector or new) is simple a vector containing the new col
-# names, and the second argument is a vector of equal length naming the cols to
-# be renamed (here those cols are collected using the tidy select helper
-# contains()). We then name the nine new age-strat specific lookup tables with
-# the names of their corresponding age_strats, using set_names. Naming the list
-# elements here is crucial for output, as these names become the tabbed names on
-# the .xlsx output file.
 print_lookups_at <- age_test_cols_at %>% 
   map(
     ~

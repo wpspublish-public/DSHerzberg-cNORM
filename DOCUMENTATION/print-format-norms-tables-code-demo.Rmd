@@ -13,17 +13,23 @@ The norms development process (i.e., the process of creating raw-to-norm-score[^
 
 [^1]: In this general overview we refer to "norm scores", rather than specific types of norm scores, such as T scores or IQ-type standard scores. Once the discussion turns to the specific input files used by this script, we will refer to standard scores.
 
-1.  Modeling the raw-to-norm-score relationship using `cNORM` (or custom R code) and create basic lookup tables as output.
-2.  Applying manual smoothing to the basic lookup tables, as needed, to prepare the norms for clinical use.
-3.  Converting the modified basic lookup tables into print-format lookup tables (or, alternatively, into digital-format lookup tables).
+1.  Model the raw-to-norm-score relationship using `cNORM` (or custom R code) and create basic lookup tables as output.
+2.  Apply manual smoothing to the basic lookup tables, as needed, to prepare the norms for clinical use.
+3.  Convert the modified basic lookup tables into print-format lookup tables (or, alternatively, into digital-format lookup tables).
 
-Because Stage 2 is a manual modification of `cNORM` output, Stage 3 cannot be reintegrated into the `cNORM` workflow. Stage 3 must be handled separately, and that is the purpose of this R script. The script takes as input the basic lookup tables and transforms them into the print format. The script assumes a project with age-stratified norms and multiple tests.
+Because Stage 2 is a manual modification of `cNORM` output, Stage 3 cannot be reintegrated into the `cNORM` workflow. Stage 3 must be handled separately, and that is the purpose of this R script. The script takes as input the modified basic lookup tables and transforms them into print-format tables. The script is a template that can handle multiple tests or subtests in a batch process. The script is set up for age-stratified norms, but can be modified for grade-based norms.
 
-It is important to keep in mind that the lookup relationship between raw and norm scores is many-to-one. That is, each raw score value maps onto one and only one norm score value, but each norm score value may map on to more than one raw score value. This many-to-one relationship will be made explicit in following narrative.
+The documentation refers frequently to the lookup relationship between raw and norm scores. It's important to keep in mind that this relationship is is *many-to-one*. That is, each raw score value maps onto one and only one norm score value, but each norm score value *may* map on to more than one raw score value. This many-to-one relationship is preserved through the Stage 3 transformations imposed by this script, as the commented snippets below explain.
 
-At its core, Stage 3 is a transformation in the hierarchical organization of the data. The input tables embody a data hierarchy in which age groups are a subordinate category of tests. Thus, there is one table per test, and each of these tables holds the lookup columns for all age groups. In this documentation, we use the shorthand expressions `test>>age` or `ta` to label the input data hierarchy.
+Essentially, the Stage 3 process transforms two structures in the input tables:
 
-There is also what we might call a "lookup direction" associated with the input tables. That is, one looks up raw scores in a column at the left margin of the table, and reads to the right to find the column with the associated standard scores for a particular age group.
+1.  The hierarchical organization of the data;
+
+2.  The directional flow of the tables from lookup input to lookup output (i.e., the "lookup direction").
+
+The input tables embody a data hierarchy in which age groups are a subordinate category of tests. Thus, there is one table per test, and each of these tables holds the lookup columns for all age groups. In this documentation, we use the shorthand expressions `test>>age` or `ta` to label the input data hierarchy.
+
+The input tables have a left-to-right lookup direction. That is, one looks up raw scores in a column at the left margin of the table, and reads to the right to find the column with the associated standard scores for a particular age group.
 
 Below is the head of a typical input table, showing the `test>>age` data hierarchy and the left-to-right lookup direction.
 
@@ -49,11 +55,11 @@ Below is the head of a typical input table, showing the `test>>age` data hierarc
 
     9        93        88         83        77         72        67         62        59
 
-Note that the column names are the age range (in `years.months` format) of each age group. Also, reading left--to-right along the rows, each raw score maps onto only one standard score per age group, reflecting the many-to-one relationship between raw and standard scores.
+Note that the column names are the age range (in `years.months` format) of each age group. Also, reading left-to-right along the rows, each raw score maps onto only one standard score per age group, reflecting the many-to-one relationship between raw and standard scores.
 
-In the print-format lookup tables, the input data hierarchies is inverted: tests are a subordinate category of age groups. That is, there is one table per age group, and each of these tables holds the lookup columns for all tests. We use the shorthand expressions `age>>test` or `at` to label the print-format data hierarchy.
+Creating the print-format lookup tables requires an inversion of both the data hierarchy and and the lookup direction. In the print-format tables, tests are a subordinate category of age groups. That is, there is one table per age group, and each of these tables holds the lookup columns for all tests. We use the shorthand expressions `age>>test` or `at` to label the print-format data hierarchy.
 
-The input lookup direction is reversed in the print-format tables. That is, one looks up raw scores for a particular test in one of the the rightward columns, and reads to the left to find the associated standard score in a column on the left margin.
+The print-format tables have a right-to-left lookup direction. That is, one looks up raw scores for a particular test in one of the the rightward columns, and reads to the left to find the associated standard score in a column on the left margin.
 
 Below is the head of a typical print-format table, showing the `age>>test` data hierarchy and the right-to-left lookup direction.
 
@@ -79,7 +85,7 @@ Below is the head of a typical print-format table, showing the `age>>test` data 
 
     92      121    23      20      16      63      -       -
 
-Note that the column names are now acronyms, one for each test. Some cells within these columns hold a range of raw scores, rather than a single score. This embodies the many-to-one relationship between raw and standard scores, in which each standard score may map onto more than one raw score.
+Note that the column names are now acronyms, one for each test. Some cells within these columns hold a range of raw scores, rather than a single score. This embodies the many-to-one relationship between raw and standard scores, in which each standard score *may* map onto more than one raw score.
 
 To track the transformation of the data hierarchy explicitly in the code, we name objects with the `ta` suffix when they express the input (`test>>age` )hierarchy. Similarly, we use the suffix `at` to name objects that embody the print-format (`age>>test`) hierarchy. The suffix `flat` is used to name objects that lack hierarchical structure.
 
@@ -175,19 +181,19 @@ write_xlsx(print_lookups_at,
 
 #### I. Load packages, set up tokens, read input files
 
-Load packages for file path specification (`here`), data wrangling (`tidyverse`), and writing files in .xlsx format (`writexl`). Initialize tokens for test names, file paths, and other input parameters. Tokenization of these elements facilitates re-use of the script for different projects with different input parameters. Because these input parameters are used repeatedly throughout the script, specifying them as tokens enables the user to enter the values only once, thus limiting the influence of human data entry error on the script.
+Load packages for file path specification (`here`), data wrangling (`tidyverse`), and writing files in .xlsx format (`writexl`). Initialize tokens for test names, file paths, and other input parameters. Tokenization of these elements facilitates adaptation of the template to different projects with different input parameters. Project-specific values are entered only once, at the beginning of the script, thus reducing the chance of human input error.
 
 ```{r print-format-norms, echo = 1:10, eval = F}
 ```
 
-Use `read_csv()` to read the input files into a list named `input_files_ta`. In this example there are six input files; therefore we `map()` is used to call `read_csv()` iteratively for each input file. The first argument to `map()` is the vector `input_test_names`, one of the tokens initialized at the outset of this script. This vector contains the text strings that distinguish the names of six input files, one for each test. The second argument to `map()` is the function to be applied to iteratively to the input files, namely `read_csv()`. Within `map()`, the function call is set off with the formula notation `~`.
+Read input files into a list named `input_files_ta`. In this example, the script processes six tests from the Tests of Dyslexia (TOD) project. Thus, there are six input files, one for each test, each embodying the `test>>age` data hierarchy. To read this set of input files, we use `map()` to call `read_csv()` iteratively for each input file. The first argument to `map()` is the vector `input_test_names`, one of the tokens initialized at the outset of this template. The second argument to `map()` is the function to be applied to iteratively to the input files, namely `read_csv()`. Within `map()`, the function call is set off with the formula notation `~`.
 
 As `map()` iterates over the `input_test_names` vector, it passes one complete file path at a time to `read_csv()`. These file paths are strings, concatenated from tokens and sub-strings with `str_c()`. `map()` returns a list, `input_files_ta`, holding the input files as six data frames. `set_names()` applies the matching test-specific name to each element of the list.
 
 ```{r print-format-norms, echo = 12:19, eval = F}
 ```
 
-The print-format lookup tables include two static columns, one holding all possible standard scores, and the other holding the percentile rank associated with each standard score. Use `read_csv()` to read these columns into a data frame `perc_ss_cols`.
+The print-format lookup tables include two static columns, one holding all possible standard scores, and the other holding the percentile rank associated with each standard score. We use `read_csv()` to read these columns into a data frame `perc_ss_cols`.
 
 To finalize the print-format tables, a vector containing the names of the age groups is required. These names exist in each of the input files, as column names. To obtain the required vector `age_strat`, we start with a single input file, which is extracted from the list `input_files_ta` with double-bracket `[[]]` subsetting. We call `select(-raw)` to drop the `raw` column, retaining only the age-group columns. We extract the names of these columns into a vector with `names()`.
 
@@ -196,11 +202,11 @@ To finalize the print-format tables, a vector containing the names of the age gr
 
 #### II. Impose print-style formatting on the input tables
 
-In the next snippet, we again use `map()` for iterative processing of multiple tables held in a list. Here, `map()` is used to apply a long pipeline of functions to the tables held in the list `input_files_ta`. This list is piped into `map()`, where it is represented by the `.x` token, which sits at the beginning of the pipeline of functions set off by `~`. `map()` thus applies the function chain iteratively to each element of `.x`, returning the list of transformed tables, `print_lookups_ta`. The suffix of this output list denotes that the tables at this stage retain the `test>>age` data hierarchy.
+In the next snippet, we again use `map()` for iterative processing of multiple tables held in a list. Here, `map()` is used to apply a long pipeline of functions to the tables held in the list `input_files_ta`. This list is piped into `map()`, where it is represented by the `.x` token, which sits at the beginning of the pipeline of functions set off by `~`. `map()` thus applies the function chain iteratively to each element of `.x`, returning a list of transformed tables, `print_lookups_ta`. The suffix of this output list denotes that the tables at this stage retain the `test>>age` data hierarchy.
 
-We use `pivot_longer()` to transform each input table to a long, multilevel format, in which a set of standard scores (one for each age group) is nested within each value of raw score. The first argument to `pivot_longer()`, which we specify with `contains("-")`, names the columns to be pivoted to long format (i.e., the columns in the input table that contain the standard scores for each age group). The second argument, `names_to = "age_strat"`, designates a new column whose rows, in long format, will hold the names of the pivoted columns. The third argument, `values_to = "ss"`, designates a new column whose rows, in long format, will hold the cell values (that is, the standard scores) contained in the pivoted columns.
+We begin the transformation by calling `pivot_longer()` to transform each input table to a long, multilevel format, in which a set of standard scores (one for each age group) is nested within each value of raw score. The first argument to `pivot_longer()`, which we specify with `contains("-")`, names the columns to be pivoted to long format (i.e., the columns in the input table that contain the standard scores for each age group). The second argument, `names_to = "age_strat"`, designates a new column whose rows, in long format, will hold the names of the pivoted columns. The third argument, `values_to = "ss"`, designates a new column whose rows, in long format, will hold the cell values (that is, the standard scores) contained in the pivoted columns.
 
-Here we are excluding the `raw` column from the pivot, meaning that in the long table, `raw` remains in the left-most column and becomes a Level 2 variable (in nomenclature of multilevel modeling). The rows of `raw` are expanded such that each raw score value has eight rows, one for each of the eight age groups whose values appear in the `age_strat` column. The new columns, `age_strat` and `ss`, are now Level 1 variables, because they are nested within the Level 2 variable `raw`. We then use `arrange()` to sort the data by `age_strat`.
+Here we are excluding the `raw` column from the pivot, meaning that in the long table, `raw` remains in the left-most column and becomes a Level 2 variable (in nomenclature of multilevel modeling). The rows of `raw` are expanded such that each raw score value has eight rows, one for each of the eight age groups whose names now appear in the `age_strat` column. The new columns, `age_strat` and `ss`, are now Level 1 variables, because they are nested within the Level 2 variable `raw`. We then use `arrange()` to sort the data by `age_strat`.
 
 To visualize the transformation, here are a few rows from the long-format table:
 
@@ -227,7 +233,7 @@ As noted above, each value of `raw` now has eight rows, one for each value of `a
 ```{r print-format-norms, echo = 29:33, eval = F}
 ```
 
-The current `ss` column is the antecedent of the left-ward standard-score lookup column of the print-format table. As such, it needs to contain all possible values of `ss`, sorted descending, with no duplicates. To get it to this state, we call `tidyr::complete()`, which fills in missing values of a variable, adding a new row for each filled-in value. As an argument to `complete()`, we pass `ss = 40:130`, which adds rows for any values in the range of `40` to `130` that are missing from the current `ss` column. To ensure that values are filled in consecutively within each age group, we `group_by(age_strat)` before calling `complete()`.
+The current `ss` column is the antecedent of the left-ward standard-score lookup column of the print-format table. To serve this purpose, it needs to contain all possible values of `ss`, sorted descending, with no duplicates. To get it to this state, we call `tidyr::complete()`, which fills in missing values of a variable, adding a new row for each filled-in value. As an argument to `complete()`, we pass `ss = 40:130`, which adds rows for any values in the range of `40` to `130` that are missing from the current `ss` column. To ensure that values are filled in consecutively within each age group, we `group_by(age_strat)` before calling `complete()`.
 
 ```{r print-format-norms, echo = 34:35, eval = F}
 ```
@@ -253,7 +259,7 @@ As noted earlier, the lookup relationship between raw and standard scores is man
     5.0-5.3     130    23
     5.0-5.3     130    24
 
-In the finalized print-format lookup table, there is only a single row for each possible value of standard score. In the example above, where there are five rows mapping `ss = 130` onto five consecutive values of `raw`, we need to collapse multiple values of `raw` into a single range of raw scores. We can then replace the five rows above with a single row in which `ss` is `130` and `raw` is `20-24`.
+In the finalized print-format lookup tables, there is only a single row for each possible value of standard score. In the example above, where there are five rows mapping `ss = 130` onto five consecutive values of `raw`, we need to collapse multiple values of `raw` into a single range of raw scores. We can then replace the five rows above with a single row in which `ss` is `130` and `raw` is `20-24`.
 
 In addition to the one-to-many mapping for `ss = 130`, the rows above include one-to-one mappings for other values of `ss` (e.g., `ss = 126` maps *only* to `raw = 18`). In the next code snippet, we use `dplyr::filter()` to collapse the table vertically and retain rows according to the following rules:
 
@@ -293,57 +299,85 @@ Because the data object is grouped by `ss`, we can call `dplyr::summarize()` to 
 
 As an argument to `summarize()`, we pass the expression `raw = str_c(raw, collapse = '--')`, which returns the required values for both types of `raw` to `ss` mappings. Note that the RHS is wrapped in `str_c`, meaning that numbers will be formatted as strings in the new `raw` column. One-to-one mappings are represented in the current object as single rows, so the summarizing expression simply returns the "old" value of `raw` in that row. Many-to-one mappings are now represented by two-row groups, with the rows containing the lower and upper bounds of the required raw-score ranges. For these two-row groups, `str_c()` joins the two "old" values of `raw`, collapsing them into a single string with the separator `--`.[^3]
 
-[^3]: We use two dashes (`--`), instead of a single dash, to prevent the score ranges from being mistakenly read as dates when the saved output is opened in MS Excel.
+[^3]: We use two dashes (`--`), instead of a single dash, to prevent the score ranges from being erroneously read as dates when the saved output is opened in MS Excel.
 
-Because the mapping of `raw` to `ss` is many-to-one, there may be values of `ss` that are not mapped onto any value of `raw`. In the rows shown above, for example,  `ss = 119` is “unmapped” (i.e., `    raw = NA` for `ss = 119`). To format the `raw` column properly for final output, we use `mutate(across(case_when()))` to recode `NA` to `-` in the `raw` column. We then use `arrange()` to sort the table ascending by `age_strat`, and descending by `ss`.
+Because the mapping of `raw` to `ss` is many-to-one, there may be values of `ss` that are not mapped onto any value of `raw`. In the rows shown above, for example, `ss = 119` is "unmapped" (i.e., `raw = NA` for `ss = 119`). To format the `raw` column properly for final output, we use `mutate(across(case_when()))` to recode `NA` to `-` in the `raw` column. We then use `arrange()` to sort the table ascending by `age_strat`, and descending by `ss`.
 
 ```{r print-format-norms, echo = 36:40, eval = F}
 ```
 
 Recall that the original data input to this process was a wide-format data frame (i.e., an element of the list `input_files_ta`). We pivoted this input to long format, so that we could transform it by applying `dplyr` functions on a row-wise basis. As a result, the current data object is a long-format, three-column table whose cell values are formatted as required for the print-format lookup table. The `ss` column thus contains all possible values of standard score in descending order (nested within each value of `age_strat`).
 
-To prepare the final output, we call `pivot_wider()` to return the data object to wide format. We include two of the three existing columns in arguments to `pivot_wider()`: `names_from = age_strat`, to specify that names for the new columns in the wide table are to be drawn from the existing `age_strat` column; and `values_from = raw`, to indicate that cell values for the new columns are to be drawn from the existing `raw` column. `pivot_wider()` thus returns a wide table in which the existing `ss` column becomes the left-most column, the existing `age_strat` and `raw` columns are dropped, and the new rightward columns are named for the age groups and contain the raw-score lookup values corresponding to each standard score. Here is the head of the resulting table:
+To advance the transformation toward the final output requirements, we call `pivot_wider()` to return the data object to wide format. We include two of the three existing columns in arguments to `pivot_wider()`: `names_from = age_strat`, to specify that names for the new columns in the wide table are to be drawn from the existing `age_strat` column; and `values_from = raw`, to indicate that cell values for the new columns are to be drawn from the existing `raw` column. `pivot_wider()` thus returns a wide table in which the existing `ss` column becomes the left-most column, the existing `age_strat` and `raw` columns are dropped, and the new rightward columns are named for the age groups and contain the raw-score lookup values corresponding to each standard score. Here is the head of the resulting table:
 
-```
-ss   5.0-5.3    5.4-5.7   5.8-5.11   6.0-6.5   6.6-6.11   7.0-7.5   7.6-7.11   8.0-8.5   8.6-9.3 
+    ss   5.0-5.3    5.4-5.7   5.8-5.11   6.0-6.5   6.6-6.11   7.0-7.5   7.6-7.11   8.0-8.5   8.6-9.3 
 
-130   20--32    21--32    23--32     26--32    28--32     30--32    32         -         -        
-129   19        -         -          25        -          -         31         32        -        
-128   -         -         -          -         27         29        -          -         -        
-127   -         20        22         24        -          -         -          -         32       
-126   18        -         -          -         -          -         30         -         -        
-125   -         -         -          -         26         28        -          31        -        
-```
+    130   20--32    21--32    23--32     26--32    28--32     30--32    32         -         -        
+    129   19        -         -          25        -          -         31         32        -        
+    128   -         -         -          -         27         29        -          -         -        
+    127   -         20        22         24        -          -         -          -         32       
+    126   18        -         -          -         -          -         30         -         -        
+    125   -         -         -          -         26         28        -          31        -        
+
 To complete this section of the code, `filter(!is.na(ss))` is used to drop extraneous rows that are missing standard scores. `right_join()` brings in a static column `perc` of percentile rank values corresponding to the standard score values, and that column is placed in the required output position with `relocate()`.
 
-At this point, `map()` finishes iterating, and the list of input tables has been transformed into a list of print-format lookup tables. `set_names()` is used to apply test-specific names to each element of the output list.
+At this point, `map()` finishes iterating, and the list of input tables has been transformed into a list (`print_lookups_ta`) of print-format lookup tables. `set_names()` is then used to apply test-specific names to each element of the transformed list.
 
 ```{r print-format-norms, echo = 41:47, eval = F}
 ```
 
-#### III. Flatten tables with the `test>>age` hierarchy into a set of age-specific columns with no hierarchy.
+#### III. Flatten tables with `test>>age` hierarchy into list of age-specific columns with no hierarchy.
 
-The code in Section II accomplished one part of the transformation: changing the format of the raw score columns into that requried for the print-format lookup tables. But the tables in the output list of that code section, `print_lookups_ta`, still retain the `test>>age` hierarchy of the input tables.
+The code in the preceding section accomplished one part of the Stage 3 transformation: changing the format of the raw score columns into that required for the print-format lookup tables. But the tables in `print_lookups_ta` still retain the `test>>age` hierarchy of the input tables.
 
-Completing the transformtion into print format involves two additional steps: flattening the `test>>age` into a non-hierarchical structure, and then restructuring again to yield the `age>>test` data hierarchy required for final output.
+Completing the transformation into print format involves two additional steps: flattening the `test>>age` hierarchy into a non-hierarchical flat structure, and then restructuring again to yield the `age>>test` data hierarchy required for final output.
 
-The next operation is to decompose the tables held in `print_lookups_ta`. Recall that those tables have the structure shown in the example above, where there are right-ward columns holding the raw scores for each age group. Decomposition of these tables means transforming a single table into a set of tables, each containing the left-ward `perc` and `ss` columns, as well as a single right-ward column with the raw scores for a single age group. Essentially, a single table is broken up into a list of three-column sub-tables, one for each age group, and the output is a "list of lists", retaining the top-level structure of `print_lookups_ta`, which is a list of tables, one for each test. In the output, each of those input tables is transformed into a list of three-column tables, one for each age group, thus completing the "list of lists" structure.
+Prior to flattening, the tables held in `print_lookups_ta` must undergo a decomposition process. Recall that those tables have the structure shown in the example above, where there are multiple right-ward columns holding the raw scores for each age group. Decomposition of these tables means transforming a single wide table into a list of narrower tables, each containing the left-ward `perc` and `ss` columns, as well as a single right-ward column with the raw scores for a single age group. Essentially, a single table is broken up into a list of three-column sub-tables, one for each age group. The data object is now a "list of lists", retaining the top-level structure of `print_lookups_ta`, which is a list of tables, one for each test. In the decomposed structure, each input table is transformed into a list of three-column tables, one for each age group. Thus, where `print_lookups_ta` was a list of six tables, the current data object is a list of six lists.
 
 The code accomplishes this restructuring via nested `map()` calls. In the outer call, `map()` iterates over the list of tables `print_lookups_ta`. That outer `map()` call feeds one table at a time to the inner `map()` call, which iterates over `age_strat`, a vector holding the names of the age groups.
 
-Isolating the inner `map()` call, the data input is one table from the `print_lookups_ta` list. That input is represented by the `.y` token. The input is piped into `select()`, which keeps three columns: `perc`, `ss`, and one column of raw scores, corresponding to the element of `age_strat` named in the current iteration of the inner `map()` call. That latter element is represented by the `.x` token. Because `.x` in this case is a quoted string, we need to unquote it by wrapping it in `!!sym()` in order it to pass it to `select()`. The `.y = .x` argument to the inner `map()` call is required to process the inputs in the correct sequence; that is, the input data frame is processed within the iterative structure that applies the elements of `age_strat`, not the other way around.
+Isolating the inner `map()` call, the data input is one table from the `print_lookups_ta` list. That input is represented by the `.y` token. The input is piped into `select()`, which keeps three columns: `perc`, `ss`, and one column of raw scores, corresponding to the element of `age_strat` named in the current iteration of the inner `map()` call. That latter element is represented by the `.x` token. Because `.x` in this case is a quoted string, we need to unquote it by wrapping it in `!!sym()` in order it to pass it to `select()`. The `.y = .x` argument to the inner `map()` call ensures that the inputs are processed in the correct sequence. That is, the test-specific elements of `print_lookups_ta` are processed within the iterative structure that applies the elements of `age_strat`, not the other way around.
 
-After the inner `map()` call iterates completely over `age_strat`, it returns a list of three-column lookup tables corresponding to each age group. The elements of this list are named for their respective age groups with `set_names(age_strat)`. Control is then passed back to the outer `map()` call, which feeds the next table from `print_lookups_ta` to the inner `map()` call for processing, and so on, until all tables from `print_lookups_ta` have been decomposed. The final output is a "list of lists", `age_strat_cols_ta`, containing a list for each test, each of which holds a set of three-column lookup tables for that test, one for each age group.
+After the inner `map()` call iterates completely over `age_strat`, it returns a test-specific list of three-column lookup tables, one for each age group. The elements of this list are named for their respective age groups with `set_names(age_strat)`. Control is then passed back to the outer `map()` call, which feeds the next table from `print_lookups_ta` to the inner `map()` call for processing, and so on, until all tables from `print_lookups_ta` have been decomposed. The final output is a "list of lists", `age_strat_cols_ta`, containing a list for each test, each of which holds the age-group-specific three-column lookup tables for that test.
 
 ```{r print-format-norms, echo = 49:55, eval = F}
 ```
 
-Before creating the `age>>test` data hierarchy required for the print-format lookup tables, the existing `test>>age` hierarchy must be removed. Essentially this involves collapsing the "list of lists" structure into a single list, a process known as flattening. The single list that results will contain 54 elements: for each of six different tests, there are nine age-group-specific three-column lookup tables. These 54 tables must be identified by their age group and test. Accordingly we use `purrr::cross2()` to create all possible combinations of the `input_test_names` and `age_strat` vectors. `cross2()` returns a list, not the required vector of names (strings). To get the list into the vector format, we call `map_chr()`, which returns a character vector, passing `str_c()` to join the test-age group pairs into single strings. The resulting vector of names is `age_test_names_flat`.
+Before applying the `age>>test` data hierarchy required for the print-format lookup tables, the existing `test>>age` hierarchy must be removed. Essentially this involves collapsing the "list of lists" structure into a single list, a process known as flattening. The resulting flattened list contains 54 age-group-specific, three-column lookup tables[^4]. Naming is critical here, to preserve the association of each list element with its correct test and age group. Accordingly, we use `purrr::cross2()` to create all possible combinations of the `input_test_names` and `age_strat` vectors. `cross2()` returns a list, not the required vector of names (strings). To reformat the list as a character vector, we call `map_chr()`, passing `str_c()` to join the test-plus-age-group combinations into single strings. The resulting vector of names is `age_test_names_flat`.
 
-We then apply `purrr::flatten()` to the list-of-lists `age_strat_cols_ta`, which removes one level of list structure, along with the `test>>age` data structure. The result is the 54-element list `age_test_cols_flat`, whose name reflects the removal of the `test>>age` structure. We use `set_names(age_test_names_flat)` to preserve identification of the 54 elements.
+[^4]: Fifty-four elements result from the crossing of six tests with nine age groups.
+
+
+## START HERE
+
+We then apply `purrr::flatten()` to the list-of-lists `age_strat_cols_ta`, which removes one level of list structure, along with the `test>>age` data structure. The result is the 54-element list `age_test_cols_flat`, with the `flat` suffix signaling the removal of the `test>>age` structure. We use `set_names(age_test_names_flat)` to preserve identification of the 54 elements.
 
 ```{r print-format-norms, echo = 57:61, eval = F}
 ```
 
-Once all 54 lookup tables required for output are held in a single flattened list, it is relatively simple to apply the `age>>test` data hierarchy. The input hierarchy was was essentially a subset structure, in which age-groups were subsetted by their associated tests.
+#### IV. Impose `age>>test` hierarchy, reduce list elements to age-group specific lookup tables, write output to .xlsx.
 
+Once all 54 lookup tables required for output are held in a single flattened list, it is a straightforward process to rebuild the list-of-lists structure with the `age>>test` data hierarchy. It's helpful to think of these data hierarchies as subsetting structures. For example, in the input `test>>age` hierarchy, six subsets are present, one for each test. Each of these subsets holds nine sets of columns, each set of columns expressing the lookup relationship for one age group, for that particular test. To build the `age>>test` data hierarchy into a list-of-lists structure, we need to invert the subsetting approach and create subsets for the nine agegroups.
+
+This new subsetting structure will be imposed on the flattened, 54-element list `age_test_cols_flat`. The resulting list-of-lists is named `age_test_cols_at`, with the `at` suffix signaling that it embodies the `age>>test` data hierarchy.
+
+We use `purrr::keep()` to subsest a list. The first argument to `keep()` is the source list for drawing subsests, in this instance the flattened list `age_test_cols_flat`. The second argument is a predicate function which is applied to the elements of `age_test_cols_flat`. Only the elements where the predicate evalutes to `TRUE` are kept in the subset.
+
+In this instance, the predicate function is `str_detect(names(age_test_cols_flat), .x)`, which returns `TRUE` when the name of element in `age_test_cols_flat` contains `.x`. In the current snippet, we call `map()` to apply `keep()` iteratively over the `age_strat` venctor. Thus, in each iteration, we retain only the elements of `age_test_cols_flat` that correspond to a single age group. This creates the subsetting structure required for output, because each age-group specific subset contains six three-column lookup tables, one for each test. In this way, `map()` returns a list-of-lists, `age_test_cols_at`, which has the required `age>>test` data hierarchy.
+
+```{r print-format-norms, echo = 63:68, eval = F}
+```
+
+The next step is to transform `age_test_cols_at` from a list-of-lists into a list of data frames suitable for writing out as tabbed .xlsx output. For this operation we `map()` a set of functions over the elements of `age_test_cols_at`, which are themselves lists of three-column lookup tables, one for each tests. Each of these lists is, of course, a subset corresponding to one of the nine age groups.
+
+To each age-group specific list (represented by `.x` in the `map()` call), we apply `purrr::reduce()`, which in turn recursively applies `left_join()` to the three-column lookup tables contained in `.x`. `by = c("perc", "ss")` identifies the index columns for the join. The end result is that a subset of three-column lookup tables is reduced to a single lookup table, with `perc` and `ss` as the left-most columns, and with six right-ward columns, each containg the corresponding raw scores for one test. To further refine this output table, we call `rename_with()` to improve the names for the raw-score columns. This call takes advantage of a shorthand specification for `rename_with()`, in which the first argument is simply a vector of the new names (here `output_test_names`), and the second argument is a vector, of equal length, specifying the existing column names that are to be replaced (here we use the `tidyselect` helper `contains("-")` to identify only the raw-score columns, whose existing names contain a dash character).
+
+`map()` returns `print_lookups_at`, a list of nine lookup tables, one for each age group. We use `set_names(age_strat)` to name the nine list elements appropriately.
+
+```{r print-format-norms, echo = 69:77, eval = F}
+```
+
+The required format for the final output is a single .xlsx workbook, with nine named tabs, each containing the lookup table, in print format, for one age group. To create this output, we use `writexl::write_xlsx()`. This function takes the named list `print_lookups_at` and writes each table onto a separate .xlsx tab, using the name of the list element for the tab name. The output file path for the resulting .xlsx workbook is specified using `here()` (to anchor the path to R project folder) and `str_c` (to concatenate static text and previously specified tokens into a single string, representing the required file path).
+
+```{r print-format-norms, echo = 78:83, eval = F}
+```
