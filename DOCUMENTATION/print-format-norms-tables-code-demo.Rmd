@@ -190,7 +190,7 @@ Read input files into a list named `input_files_ta`. In this example, the script
 
 [^2]: The six TOD-E tests are: Letter and Sound Knowledge (LSK-E), Letter and Sight Word Recognition (LSW-E), Ryming (RHY-E), Rapid Letter and Number Naming (RLN-E), Segmenting (SEG-E), Sounds and Pseudowords (SPW-E).
 
-As `map()` iterates over the `input_test_names` vector, it passes one complete file path at a time to `read_csv()`. These file paths are strings, concatenated from tokens and quoted sub-strings with `str_c()`. `map()` returns a list, `input_files_ta`, holding the input files as six data frames. `set_names()` applies matching test-specific names to to the six data frames.
+As `map()` iterates over the `input_test_names` vector, it passes one complete file path at a time to `read_csv()`. These file paths are strings, concatenated from tokens and quoted sub-strings with `str_c()`. `map()` returns a list, `input_files_ta`, holding the input files as six data frames. `set_names()` applies matching test-specific names to the six data frames.
 
 ```{r print-format-norms, echo = 12:19, eval = F}
 ```
