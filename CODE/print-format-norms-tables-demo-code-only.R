@@ -6,20 +6,20 @@ input_test_names <- c("lske", "lswe", "rhme", "rlne", "sege", "snwe")
 output_test_names <- c("LSK-E", "LSW-E", "RHY-E", "RLN-E", "SEG-E", "SPW-E")
 tod_form <- "TOD-E"
 norm_type <- "age"
-input_file_path <- "INPUT-FILES/PRINT-FORMAT-NORMS-TABLES/"
-output_file_path <- "OUTPUT-FILES/PRINT-FORMAT-NORMS-TABLES/"
+urlRemote_path  <- "https://raw.github.com/"
+github_input_path <- "wpspublish-public/DSHerzberg-cNORM/master/INPUT-FILES/PRINT-FORMAT-NORMS-TABLES/"
 
 input_files_ta <- map(
   input_test_names,
   ~
-  suppressMessages(read_csv(here(str_c(
-  input_file_path, .x, "-", norm_type, ".csv"
+  suppressMessages(read_csv(url(str_c(
+  urlRemote_path, github_input_path, .x, "-", norm_type, ".csv"
 ))))
 ) %>% 
   set_names(input_test_names)
 
-perc_ss_cols <- suppressMessages(read_csv(here(str_c(
-  input_file_path, "perc-ss-cols.csv"
+perc_ss_cols <- suppressMessages(read_csv(url(str_c(
+  urlRemote_path, github_input_path, "perc-ss-cols.csv"
 ))))
 
 age_strat <- input_files_ta[[1]] %>% 
@@ -75,16 +75,11 @@ print_lookups_at <- age_test_cols_at %>%
   ) %>% 
   set_names(age_strat)
 
-# Write raw-to-ss lookups by agestrat into tabbed, xlsx workbook. To create
-# named tabs, supply writexl::write_xlsx() with a named list of dfs for each
-# tab, tab names will be the names of the list elements
 write_xlsx(print_lookups_at,
            here(
              str_c(
-               output_file_path, tod_form, "-print-lookup-tables-", norm_type, ".xlsx"
+               [INSERT LOCAL FILE PATH], "-print-lookup-tables-", norm_type, ".xlsx"
              ))
-           )
-
-
+)
 
 

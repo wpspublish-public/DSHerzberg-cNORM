@@ -245,20 +245,20 @@ input_test_names &lt;- c(&quot;lske&quot;, &quot;lswe&quot;, &quot;rhme&quot;, &
 output_test_names &lt;- c(&quot;LSK-E&quot;, &quot;LSW-E&quot;, &quot;RHY-E&quot;, &quot;RLN-E&quot;, &quot;SEG-E&quot;, &quot;SPW-E&quot;)
 tod_form &lt;- &quot;TOD-E&quot;
 norm_type &lt;- &quot;age&quot;
-input_file_path &lt;- &quot;INPUT-FILES/PRINT-FORMAT-NORMS-TABLES/&quot;
-output_file_path &lt;- &quot;OUTPUT-FILES/PRINT-FORMAT-NORMS-TABLES/&quot;
+urlRemote_path  &lt;- &quot;https://raw.github.com/&quot;
+github_input_path &lt;- &quot;wpspublish-public/DSHerzberg-cNORM/master/INPUT-FILES/PRINT-FORMAT-NORMS-TABLES/&quot;
 
 input_files_ta &lt;- map(
   input_test_names,
   ~
-  suppressMessages(read_csv(here(str_c(
-  input_file_path, .x, &quot;-&quot;, norm_type, &quot;.csv&quot;
+  suppressMessages(read_csv(url(str_c(
+  urlRemote_path, github_input_path, .x, &quot;-&quot;, norm_type, &quot;.csv&quot;
 ))))
 ) %&gt;% 
   set_names(input_test_names)
 
-perc_ss_cols &lt;- suppressMessages(read_csv(here(str_c(
-  input_file_path, &quot;perc-ss-cols.csv&quot;
+perc_ss_cols &lt;- suppressMessages(read_csv(url(str_c(
+  urlRemote_path, github_input_path, &quot;perc-ss-cols.csv&quot;
 ))))
 
 age_strat &lt;- input_files_ta[[1]] %&gt;% 
@@ -317,9 +317,9 @@ print_lookups_at &lt;- age_test_cols_at %&gt;%
 write_xlsx(print_lookups_at,
            here(
              str_c(
-               output_file_path, tod_form, &quot;-print-lookup-tables-&quot;, norm_type, &quot;.xlsx&quot;
+               [INSERT LOCAL FILE PATH], &quot;-print-lookup-tables-&quot;, norm_type, &quot;.xlsx&quot;
              ))
-           )</code></pre>
+)</code></pre>
 </div>
 <div id="commented-snippets" class="section level3">
 <h3>Commented Snippets</h3>
@@ -334,22 +334,22 @@ input_test_names &lt;- c(&quot;lske&quot;, &quot;lswe&quot;, &quot;rhme&quot;, &
 output_test_names &lt;- c(&quot;LSK-E&quot;, &quot;LSW-E&quot;, &quot;RHY-E&quot;, &quot;RLN-E&quot;, &quot;SEG-E&quot;, &quot;SPW-E&quot;)
 tod_form &lt;- &quot;TOD-E&quot;
 norm_type &lt;- &quot;age&quot;
-input_file_path &lt;- &quot;INPUT-FILES/PRINT-FORMAT-NORMS-TABLES/&quot;
-output_file_path &lt;- &quot;OUTPUT-FILES/PRINT-FORMAT-NORMS-TABLES/&quot;</code></pre>
+urlRemote_path  &lt;- &quot;https://raw.github.com/&quot;
+github_input_path &lt;- &quot;wpspublish-public/DSHerzberg-cNORM/master/INPUT-FILES/PRINT-FORMAT-NORMS-TABLES/&quot;</code></pre>
 <p>Read input files into a list named <code>input_files_ta</code>. In this example, the script processes six tests from the Tests of Dyslexia, Early (TOD-E) project<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a>. There are six input files, one for each test, each embodying the <code>test&gt;&gt;age</code> data hierarchy. To read the files, we use <code>map()</code> to call <code>read_csv()</code> iteratively over the set of input files. The first argument to <code>map()</code> is the vector <code>input_test_names</code>, one of the tokens initialized upstream in the script. The second argument to <code>map()</code> is the function to be applied to iteratively to the input files, namely <code>read_csv()</code>. Within <code>map()</code>, the function call is set off with the formula notation <code>~</code>.</p>
-<p>As <code>map()</code> iterates over the <code>input_test_names</code> vector, it passes one complete file path at a time to <code>read_csv()</code>. These file paths are strings, concatenated from tokens and quoted sub-strings with <code>str_c()</code>. <code>map()</code> returns a list, <code>input_files_ta</code>, holding the input files as four data frames. <code>set_names()</code> applies matching test-specific names to the four data frames.</p>
+<p>As <code>map()</code> iterates over the <code>input_test_names</code> vector, it passes one complete file path at a time to <code>read_csv()</code>. These file paths are strings, concatenated from tokens and quoted sub-strings with <code>str_c()</code>. <code>map()</code> returns a list, <code>input_files_ta</code>, holding the input files as six data frames. <code>set_names()</code> applies matching test-specific names to the six data frames. Also, note the use of <code>url()</code> to retrieve files from a remote url.</p>
 <pre class="r"><code>input_files_ta &lt;- map(
   input_test_names,
   ~
-  suppressMessages(read_csv(here(str_c(
-  input_file_path, .x, &quot;-&quot;, norm_type, &quot;.csv&quot;
+  suppressMessages(read_csv(url(str_c(
+  urlRemote_path, github_input_path, .x, &quot;-&quot;, norm_type, &quot;.csv&quot;
 ))))
 ) %&gt;% 
   set_names(input_test_names)</code></pre>
 <p>The print-format lookup tables include two static columns, one holding all possible standard scores, and the other holding the percentile rank associated with each standard score. We use <code>read_csv()</code> to read these columns into a data frame <code>perc_ss_cols</code>.</p>
 <p>To finalize the print-format tables, a vector containing the names of the age groups is required. These names exist in each of the input files, as column names. To obtain the required vector <code>age_strat</code>, we start with a single input file, which is extracted from the list <code>input_files_ta</code> with double-bracket <code>[[]]</code> subsetting. We call <code>select(-raw)</code> to drop the <code>raw</code> column, retaining only the age-group columns. We extract the names of these columns into a vector with <code>names()</code>.</p>
-<pre class="r"><code>perc_ss_cols &lt;- suppressMessages(read_csv(here(str_c(
-  input_file_path, &quot;perc-ss-cols.csv&quot;
+<pre class="r"><code>perc_ss_cols &lt;- suppressMessages(read_csv(url(str_c(
+  urlRemote_path, github_input_path, &quot;perc-ss-cols.csv&quot;
 ))))
 
 age_strat &lt;- input_files_ta[[1]] %&gt;% 
@@ -508,12 +508,13 @@ age_test_cols_flat &lt;- flatten(age_strat_cols_ta) %&gt;%
   ) %&gt;% 
   set_names(age_strat)</code></pre>
 <p>The required format for the final output is a single .xlsx workbook, with nine named tabs, each containing the lookup table, in print format, for one age group. To create this output, we use <code>writexl::write_xlsx()</code>. This function takes the named list <code>print_lookups_at</code> and writes each table onto a separate .xlsx tab (within a single workbook), using the name of the list element for the tab name. The output file path for the resulting .xlsx workbook is specified using <code>here()</code> (to anchor the path to R project folder) and <code>str_c</code> (to concatenate quoted substrings and previously specified tokens into a single string that names the required file path).</p>
+<p>Please note that to run this final snippet, you must specify a local file path. This script does not support uploading the output to a remote url.</p>
 <pre class="r"><code>write_xlsx(print_lookups_at,
            here(
              str_c(
-               output_file_path, tod_form, &quot;-print-lookup-tables-&quot;, norm_type, &quot;.xlsx&quot;
+               [INSERT LOCAL FILE PATH], &quot;-print-lookup-tables-&quot;, norm_type, &quot;.xlsx&quot;
              ))
-           )</code></pre>
+)</code></pre>
 </div>
 </div>
 <div class="footnotes">

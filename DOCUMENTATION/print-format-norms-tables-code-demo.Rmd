@@ -1,6 +1,6 @@
 ---
 title: "Converting hand-smoothed norms tables into print-format output"
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
@@ -100,20 +100,20 @@ input_test_names <- c("lske", "lswe", "rhme", "rlne", "sege", "snwe")
 output_test_names <- c("LSK-E", "LSW-E", "RHY-E", "RLN-E", "SEG-E", "SPW-E")
 tod_form <- "TOD-E"
 norm_type <- "age"
-input_file_path <- "INPUT-FILES/PRINT-FORMAT-NORMS-TABLES/"
-output_file_path <- "OUTPUT-FILES/PRINT-FORMAT-NORMS-TABLES/"
+urlRemote_path  <- "https://raw.github.com/"
+github_input_path <- "wpspublish-public/DSHerzberg-cNORM/master/INPUT-FILES/PRINT-FORMAT-NORMS-TABLES/"
 
 input_files_ta <- map(
   input_test_names,
   ~
-  suppressMessages(read_csv(here(str_c(
-  input_file_path, .x, "-", norm_type, ".csv"
+  suppressMessages(read_csv(url(str_c(
+  urlRemote_path, github_input_path, .x, "-", norm_type, ".csv"
 ))))
 ) %>% 
   set_names(input_test_names)
 
-perc_ss_cols <- suppressMessages(read_csv(here(str_c(
-  input_file_path, "perc-ss-cols.csv"
+perc_ss_cols <- suppressMessages(read_csv(url(str_c(
+  urlRemote_path, github_input_path, "perc-ss-cols.csv"
 ))))
 
 age_strat <- input_files_ta[[1]] %>% 
@@ -172,9 +172,9 @@ print_lookups_at <- age_test_cols_at %>%
 write_xlsx(print_lookups_at,
            here(
              str_c(
-               output_file_path, tod_form, "-print-lookup-tables-", norm_type, ".xlsx"
+               [INSERT LOCAL FILE PATH], "-print-lookup-tables-", norm_type, ".xlsx"
              ))
-           )
+)
 ```
 
 ### Commented Snippets
@@ -190,7 +190,7 @@ Read input files into a list named `input_files_ta`. In this example, the script
 
 [^2]: The six TOD-E tests are: Letter and Sound Knowledge (LSK-E), Letter and Sight Word Recognition (LSW-E), Ryming (RHY-E), Rapid Letter and Number Naming (RLN-E), Segmenting (SEG-E), Sounds and Pseudowords (SPW-E).
 
-As `map()` iterates over the `input_test_names` vector, it passes one complete file path at a time to `read_csv()`. These file paths are strings, concatenated from tokens and quoted sub-strings with `str_c()`. `map()` returns a list, `input_files_ta`, holding the input files as six data frames. `set_names()` applies matching test-specific names to the six data frames.
+As `map()` iterates over the `input_test_names` vector, it passes one complete file path at a time to `read_csv()`. These file paths are strings, concatenated from tokens and quoted sub-strings with `str_c()`. `map()` returns a list, `input_files_ta`, holding the input files as six data frames. `set_names()` applies matching test-specific names to the six data frames. Also, note the use of `url()` to retrieve files from a remote url.
 
 ```{r print-format-norms, echo = 12:19, eval = F}
 ```
@@ -381,6 +381,8 @@ We then call `rename_with()` to improve the names for the raw-score columns. We 
 ```
 
 The required format for the final output is a single .xlsx workbook, with nine named tabs, each containing the lookup table, in print format, for one age group. To create this output, we use `writexl::write_xlsx()`. This function takes the named list `print_lookups_at` and writes each table onto a separate .xlsx tab (within a single workbook), using the name of the list element for the tab name. The output file path for the resulting .xlsx workbook is specified using `here()` (to anchor the path to R project folder) and `str_c` (to concatenate quoted substrings and previously specified tokens into a single string that names the required file path).
+
+Please note that to run this final snippet, you must specify a local file path. This script does not support uploading the output to a remote url.
 
 ```{r print-format-norms, echo = 78:83, eval = F}
 ```
