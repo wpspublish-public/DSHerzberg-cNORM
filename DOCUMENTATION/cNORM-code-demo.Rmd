@@ -199,7 +199,7 @@ Load packages for norming (`cNORM`), data wrangling (`tidyverse`), file path spe
 
 Specify score related tokens. `score_to_norm_max_raw` is a numerical vector containing the maximum possible raw score for `score_to_norm_stem` (the score being normed).
 
-To generate this `score_to_norm_max_raw`, start by using `data.frame(test = score_to_norm_stem)` to initialize a single-cell data frame, with the `test` column holding the name of the score to be normed. Use `mutate()` to create a second column (`max_raw`) containing the maximum value for that score.
+To generate `score_to_norm_max_raw`, start by using `data.frame(test = score_to_norm_stem)` to initialize a single-cell data frame, with the `test` column holding the name of the score to be normed. Use `mutate()` to create a second column (`max_raw`) containing the maximum value for that score.
 
 Use `case_when()` to code `max_raw` conditionally, based on the value of `test`. For example, `str_detect(test, "iws_sum")` returns `TRUE` when the value of `test` contains the string `"iws_sum"`. Under that condition, `case_when()` sets the value of `max_raw` to `44`.
 
@@ -208,13 +208,13 @@ Use `case_when()` to code `max_raw` conditionally, based on the value of `test`.
 ```{r cNORM-demo, echo = 16:24, eval = F}
 ```
 
-A useful feature of `cNORM` is its capacity to implement optimized age-stratification, constructing age groups that are best suited to the modeling of age-related score changes. Often, *a priori* age groups, which serve the needs of the audience for published norms, do not stratify the input sample in the way that best supports the `cNORM` modeling functions. After `cNORM` generates a norming model base on optimized age-stratification, `it` permits the user to specify a different age-stratification scheme for the raw-to-norm-score lookup tables. Thus it is possible to recreate the *a priori* age groups in the final output of `cNORM`, if this meets the needs of the audience for the published norms tables.
+A useful feature of `cNORM` is its capacity to implement optimized age-stratification, constructing age groups that are best suited to the modeling of age-related score changes, based on the characteristics of a particular input data set. Often, *a priori* age groups, which serve the needs of the users of published norms, do not stratify the input sample in the way that best supports the `cNORM` modeling functions. After `cNORM` generates a norming model base on optimized age-stratification, the operator can specify a different age-stratification scheme for the raw-to-norm-score lookup tables. Thus it is possible to recreate the *a priori* age groups in the final output of `cNORM`, in order to support clinical application of the published norms tables.
 
-To use `cNORM`'s age-stratification function `cNORM::getGroups()`, create a new data frame `age_contin` to hold a continuous age variable (in decimal format) for each case in the input file. Use `mutate(across())` and `lubridate::mdy()` to coerce the date variables (`DOB`, `admin_date`), which are strings in the input file, into a numeric date-time format. Within `mdy()`, the `.x` token represents the variables designated for transformation by `across()`.
+We invoke `cNORM`'s age-stratification function by calling `cNORM::getGroups()`, which creates a new data frame `age_contin` to hold a continuous age variable (in decimal format) for each case in the input file. We use `mutate(across())` and `lubridate::mdy()` to coerce the date variables (`DOB`, `admin_date`), which are strings in the input file, into a numeric date-time format. Within `mdy()`, the `.x` token represents the variables designated for transformation by `across()`.
 
-Within the same call of `mutate()`, calculate a new decimal-format `age` variable. The `%--%` operator of `lubridate` creates an arithmetic date-time interval, or duration, between a start date (here `DOB`) and an end date (here `admin_date`). Dividing this interval, which represents chronological age, by a time period (here `years(1)`, which returns 1 year as an arithmetic date-time period), converts chronological age expressed as years-months-days (e.g., 5 years, 6 months, 0 days) in to a decimal-format age value (e.g., 5.5).
+Within the same call of `mutate()`, we calculate a new decimal-format `age` variable. The `%--%` operator of `lubridate` creates an arithmetic date-time interval, or duration, between a start date (here `DOB`) and an end date (here `admin_date`). Dividing this interval, which represents chronological age, by a time period (here `years(1)`, which returns 1 year as an arithmetic date-time period), converts chronological age expressed as years-months-days (e.g., 5 years, 6 months, 0 days) in to a decimal-format age value (e.g., 5.5).
 
-Use `cNORM::getGroups(.$age)` to obtain age-stratification optimized for the norms modeling process. Passing `.$age` to `getGroups()` allows it to operate on the `age` column of the current data object.
+By specifying `getGroups(.$age)` we enable `getGroups()` to operate on the `age` column of the current data object.
 
 By default, `getGroups()` attempts to form equal-sized age groups with about 100 cases each. Below are the labels for the 15 age groups that `getGroups()` created from the input sample, which has 1407 cases. Each label is the arithmetic mean of the `age` variable for the cases assigned to that group.
 
@@ -234,14 +234,12 @@ By default, `getGroups()` attempts to form equal-sized age groups with about 100
     16.688863
     17.971970
 
-## START HERE
-
-Wrapping `getGroups()` in `bind_cols()` adds a new column to the input data object. This new column, which is provisionally named `...14` for its position in the current data object, contains the age-group assignment for each case in the input sample. Complete the setup of the `age_contin` data frame by renaming `...14` to the more meaningful `group`, and subsetting the columns with `select()`.
+Wrapping `getGroups()` in `bind_cols()` adds a new column to the input data object. This new column, which is provisionally named `...14` for its position in the current data object, contains the age-group assignment for each case in the input sample. We complete the setup of the `age_contin` data frame by renaming `...14` to the more meaningful `group`, and keeping only required columns with `select()`.
 
 ```{r cNORM-demo, echo = 26:34, eval = F}
 ```
 
-The `cNORM` norming process operates on one score at a time. For tests with multiple subtest scores that need to be normed, the workflow is to feed one score at a time through the `cNORM` script. The next code block partitions the example data file, which contains three subtest scores for each case, into separate data frames for each score. These data frames contain only the variables needed by `cNORM`.
+The `cNORM` modeling functions operate on one raw score at a time. For tests with multiple subtest scores, the workflow is to feed one score at a time through the `cNORM` functions. The next code block partitions the example data file, which contains three subtest raw scores for each case, into separate data frames for each score. These data frames contain only the variables needed by `cNORM`.
 
 The code includes two iterative segments. In the first, `map()` is used to apply a series of functions to each element of the `scores` vector, which contains the names of the three subtest scores in the input data set. Within `map`, `.x` represents the currently-iterated element of the `scores` vector (i.e., the name of a subtest score).
 
@@ -249,7 +247,7 @@ In the function pipeline, `input_original` is sent to `select` to subset only th
 
 `drop_na()` deletes rows (cases) that are missing the subtest score currently being normed. `left_join()` joins the columns of the current object with those of the previously created `age_contin`, matching cases `by = "ID"`. To obtain the column configuration required by `cNORM`, `rename()` changes the subtest score name to the generic `raw`, and `select(ID, age, group, raw)` subsets the columns in the preferred left-right sequence.
 
-At this point, `map()` has finished its operation, returning a list of unnamed dataframes, one for each subtest score, containing the variables required by `cNORM`. `set_names(scores)` is used to name each data frame with its corresponding subtest label.
+At this point, `map()` finishes iterating and returns a list of unnamed data frames, one for each subtest score, containing the variables required by `cNORM`. `set_names(scores)` is used to name each data frame with its corresponding subtest label.
 
 Next, the list of data frames is piped into `map2()`, which enables simultaneous parallel iteration over two inputs of equal length (tokenized as `.x` and `.y`). In this call of `map2()`, the current piped object (the list of data frames) is the `.x` input, and the `scores` vector is the `.y` input. Both inputs have three elements (i.e., they are of equal length).
 
@@ -260,9 +258,9 @@ Because the script writes external files, there's no need to preserve the list o
 ```{r cNORM-demo, echo = 35:53, eval = F}
 ```
 
-The next code block executes the `cNORM` modeling process, in which the increase in a latent ability over age is modeled based on the raw input data. The raw-to-norm score lookup tables are later constructed based on this model of cognitive development.
+The next code block executes the `cNORM` modeling process, in which age-related development of a latent ability is modeled using raw scores from an normative sample. This model of development is eventually operationalized as a set of raw-to-norm score lookup tables.
 
-As noted previously, the `cNORM` workflow operates on one subtest score at a time. Here, `read_csv()` is used to read in one of the .csv files written out in the preceeding code. The file path is concatenated from tokens intitialized at the begining of the of the script, in which, for this example, `iws_sum` was designated as the score to be normed.
+As noted previously, `cNORM` operates on one raw score at a time. Here, `read_csv()` is used to read in one of the single-score data frames written out by upstream code. The file path is concatenated from previously initialized tokens. In the present example, `iws_sum` is the raw score to be normed.
 
 `cnorm()` is the modeling function, and its arguments are as follows:
 
@@ -270,30 +268,30 @@ As noted previously, the `cNORM` workflow operates on one subtest score at a tim
 -   `group`: designates the age group column in the input data file (here `input$group`).
 -   `k`: a power constant that sets the limit on the expansion of the Taylor polynomial series, which controls the precision of estimation of the normative curve. The default value is 4, and values of 3 and 5 can used in searching for an acceptable model. `k = 5` is computationally intensive and entails processing times of 5 to 10 minutes on many CPUs.
 -   `terms`: sets the number of terms in the regression equation that expresses the normative model. `cnorm()` finds the best-fitting model with this number of terms. By convention, we use a starting value of 4 for `terms`.
--   `scale`: sets the scale of the norm score. Values can be `"IQ"`,`"T"`,`"z"`, `"percentile"`, or a vector that provides the mean and standard deviation of the scale (e.g., `c(10, 3)`).
+-   `scale`: sets the metric of the norm score. Values can be `"IQ"`,`"T"`,`"z"`, `"percentile"`, or a vector that provides the mean and standard deviation of the preferred metric (e.g., `c(10, 3)`).
 
 ```{r cNORM-demo, echo = 54:64, eval = F}
 ```
 
-The initial output of `cNORM()` is a model summary printed in the console, and a plot of the observed and predicted percentile curves associated with the selected norming model. The plot shown below is for the `iws` raw score in the input sample.
+The initial output of `cNORM()` is a model summary printed in the console, and a plot of the observed and predicted percentile curves associated with the norming model. The plot shown below is for the `iws` raw score in the input sample.
 
-At this point, the norming process and workflow extends outside the mere sequential execution of this script. The intital model is evaluated, using diagnostic tools available within `cNORM`. If this initial model is judged acceptable, we can proceed with the output phase of the norms process. However, if the initial model is problematic, we then re-run the `cnorm()` function wtih different values of `k` and `terms`, and examine these subsquent models with the diagnostic aids, repeating the process until we settle on a model that is acceptable (or, at least, the model with the fewest observable flaws).
+At this point, the norming process and workflow extends outside the mere sequential execution of this script. The intital model is evaluated, using diagnostic tools available within `cNORM`. If this initial model is judged acceptable, the output phase of the norms process can proceed. However, if the initial model is problematic, we then re-run the `cnorm()` function wtih different values of `k` and `terms`, and examine these subsquent models with the diagnostic aids, repeating the process until we settle on a model that is acceptable (or, at least, the model with the fewest observable flaws).
 
-*Monotonicity* is the primary criterion by which we evaluate the acceptabilty of the norming model.
+*Monotonicity* is the primary criterion by which we evaluate the norming model. In most cases, we expect that when we administer a test of a latent ability that develops through childhood, raw scores will increase monotonically (that is, increase without ever decreasing) with increasing age. It follows that a specific raw score is expected to be associated with progressively lower norm scores as age increases. This occurs because we expect the mean raw score to increase from one age group to the next, and, consequently, an identical raw score moves to a lower rank in the next oldest age group, and so on.
 
-In this plot, the x-axis variable is age group, and the y-axis variable is raw score. The plot represents seven percentile ranks: 2.5, 10, 25, 50, 75, 90, 97.5. The colored circles represent the actual raw scores associated with these percentiles, per age group, in the input data. The solid lines represent the outcome of the modeling process, whereby the selected regression equation is used to smooth the age-related progression of the seven percentile ranks.
+The best way to check monotonicity after running `cNORM()` is to examine the plot of percentile curves associated with the model. In this plot, the x-axis variable is age group, and the y-axis variable is raw score. The plot illustrates seven percentile ranks: 2.5, 10, 25, 50, 75, 90, 97.5. The colored circles represent the actual raw scores associated with these percentiles, per age group, in the input data. The solid lines represent the outcome of the modeling process, whereby the selected regression equation is used to smooth the age-related progression of each percentile rank.
 
-The plot also show the proportion of variance in raw scores that is explained by the regresion model (here, R^2^ = 0.9677). This value is usually high, and is not the key factor to examine in acessing the suitablity of the model. Rather, what we look for in this plot is that the percentile curves do not intersect over the age range of the test.
+If those curves *do not* intersect (as in the example below), the model is adequate and we can proceed to norming output.
 
-Intersecting percentile curves would indicate an unexpected change in the raw to norm-score relationship from one age group to the next. For most latent abilities, we expect raw scores to increase monotonically with increasing age. Thus, a specific raw score is associated with progessively lower norm scores as age increases. This occurs because we expect the mean raw score to increase from one age group to the next, and, consquently, an identical raw score that is below the mean, moves further below the mean in the next oldest age group, resulting in a lower norm score.
+The plot also show the proportion of variance in raw scores that is explained by the regression model (here, R^2^ = 0.9677). This value is often quite large, even in models that lack monotonicity. Rather, what we look for in this plot is that the percentile curves do not intersect over the age range of the test.
+
+Intersecting percentile curves would indicate an unexpected change in the raw to norm-score relationship from one age group to the next.
 
 When the plot shows intersecting percentile curves, however, it indicates that the norming model has produced an unexpected result. That is, for example, the same raw score is associated with a higher norm score in the next oldest age group. This situation is also referred to as a norm-score *reversal*.
 
 Usually, the presence of intersecting percentile curves prompts re-running the `cnorm()` modelling function with different parameters (i.e., different values of `k` and `terms`), in order to find a model that yields the optimal non-intersecting percentile curves.
 
-![](/Users/dherzberg/Desktop/R/cNORM/DOCUMENTATION/cNORM-code-demo-plot.png)
-
-text
+![](/Users/dherzberg/OneDrive%20-%20Western%20Psychological%20Services/Desktop/R/cNORM/DOCUMENTATION/cNORM-code-demo-plot.png) text
 
 ```{r cNORM-demo, echo = 66:67, eval = F}
 ```
