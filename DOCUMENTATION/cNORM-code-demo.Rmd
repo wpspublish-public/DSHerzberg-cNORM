@@ -273,25 +273,81 @@ As noted previously, `cNORM` operates on one raw score at a time. Here, `read_cs
 ```{r cNORM-demo, echo = 54:64, eval = F}
 ```
 
-The initial output of `cNORM()` is a model summary printed in the console, and a plot of the observed and predicted percentile curves associated with the norming model. The plot shown below is for the `iws` raw score in the input sample.
+The initial output of `cnorm()` is a model summary printed in the console, and a plot of the observed and predicted percentile curves associated with the norming model. The plot shown below is for the `iws` raw score in the input sample.
 
-At this point, the norming process and workflow extends outside the mere sequential execution of this script. The intital model is evaluated, using diagnostic tools available within `cNORM`. If this initial model is judged acceptable, the output phase of the norms process can proceed. However, if the initial model is problematic, we then re-run the `cnorm()` function wtih different values of `k` and `terms`, and examine these subsquent models with the diagnostic aids, repeating the process until we settle on a model that is acceptable (or, at least, the model with the fewest observable flaws).
+At this point, the norming process and workflow extends outside the mere sequential execution of this script. The initial model is evaluated, using diagnostic tools available within `cNORM`. If this initial model is judged acceptable, the output phase of the norms process can proceed. However, if the initial model is problematic, we then re-run the `cnorm()` function wtih different values of `k` and `terms`, and examine these subsequent models with the diagnostic aids, repeating the process until we settle on a model that is acceptable (or, at least, the model with the fewest observable flaws).
 
-*Monotonicity* is the primary criterion by which we evaluate the norming model. In most cases, we expect that when we administer a test of a latent ability that develops through childhood, raw scores will increase monotonically (that is, increase without ever decreasing) with increasing age. It follows that a specific raw score is expected to be associated with progressively lower norm scores as age increases. This occurs because we expect the mean raw score to increase from one age group to the next, and, consequently, an identical raw score moves to a lower rank in the next oldest age group, and so on.
+*Monotonicity* is the primary criterion by which we evaluate the norming model. In most cases, we expect that when we test a cognitive ability that develops through childhood, raw scores will increase monotonically (that is, increase without ever decreasing) with increasing age. It follows that a specific raw score is expected to be associated with progressively lower norm scores as age increases. This occurs because we expect the mean raw score to increase from one age group to the next, and, consequently, an identical raw score moves to a lower rank in the next oldest age group, and so on.
 
 The best way to check monotonicity after running `cNORM()` is to examine the plot of percentile curves associated with the model. In this plot, the x-axis variable is age group, and the y-axis variable is raw score. The plot illustrates seven percentile ranks: 2.5, 10, 25, 50, 75, 90, 97.5. The colored circles represent the actual raw scores associated with these percentiles, per age group, in the input data. The solid lines represent the outcome of the modeling process, whereby the selected regression equation is used to smooth the age-related progression of each percentile rank.
 
-If those curves *do not* intersect (as in the example below), the model is adequate and we can proceed to norming output.
+If those curves *do not* intersect (as in the example below), the model is adequate and we can proceed to norming output. When the plot shows intersecting percentile curves, it indicates an unexpected change in the raw to norm-score relationship from one age group to the next. For example, it may show that certain raw scores are associated with *higher* norm scores in the next oldest age group. This counter-intuitive outcome is referred to as a norm-score *reversal*.
 
-The plot also show the proportion of variance in raw scores that is explained by the regression model (here, R^2^ = 0.9677). This value is often quite large, even in models that lack monotonicity. Rather, what we look for in this plot is that the percentile curves do not intersect over the age range of the test.
+The plot also show the proportion of variance in raw scores that is explained by the regression model (here, R^2^ = 0.9677). This value is often quite large, even in models that lack monotonicity. For our purposes, R^2^ is less important than monotonicity in terms of evaluating the adequacy of the model.
 
-Intersecting percentile curves would indicate an unexpected change in the raw to norm-score relationship from one age group to the next.
+![](/Users/dherzberg/OneDrive%20-%20Western%20Psychological%20Services/Desktop/R/cNORM/DOCUMENTATION/cNORM-code-demo-plot.png) 
 
-When the plot shows intersecting percentile curves, however, it indicates that the norming model has produced an unexpected result. That is, for example, the same raw score is associated with a higher norm score in the next oldest age group. This situation is also referred to as a norm-score *reversal*.
+Usually, the presence of intersecting percentile curves prompts re-running the `cnorm()` modelling function with different parameters (i.e., different values of `k` and `terms`), in order to find a model that yields the optimal non-intersecting percentile curves. To select the best parameters, we use another diagnostic tool: `plot(model, "series", end = 8)`. This call of `plot()` returns a series of percentile graphs for `terms = 1` through `terms = 8`. Often, varying the number of regression terms in the model will result in the preservation of monotonically, as is visible in the associated plot.
 
-Usually, the presence of intersecting percentile curves prompts re-running the `cnorm()` modelling function with different parameters (i.e., different values of `k` and `terms`), in order to find a model that yields the optimal non-intersecting percentile curves.
+In general, parsimony applies: it is best to select a model with fewer terms, all else being equal. Increase the number of terms increases the likelihodd of *overfitting* the model (that is, modeling error in addition to the latent ability being evaluated). In the plots, overfitting is visualized in curves that twist and turn sharply around the raw score data points (colored circles). In contrast, a properly fitted model will yield smoothly increasing parallel colored lines.
 
-![](/Users/dherzberg/OneDrive%20-%20Western%20Psychological%20Services/Desktop/R/cNORM/DOCUMENTATION/cNORM-code-demo-plot.png) text
+Another diagnostic aid is `checkConsistency(model)`, which offers a programmatic check on monotonicity. When `checkConsistency()` returns `FALSE`, it indicates that the norming model is adequately specified, with no violations of monotonicity. If `checkConsistency()` finds problems with the model, it returns the ages at which violations of monotonicity are identified. These findings can be checked against the model plot. In addition, we can generate raw-to-norm score lookup tables based on a problematic model, to see where score reversals occur.
+
+A final note about model specification is that with some data sets, it may not be possible to find a model that is completely free of violations of monotonicity. Finalizing the norms then becomes a process of selecting the best of a series of problematic models, and then smoothing the resulting raw-to-norm-score lookup tables by hand.
 
 ```{r cNORM-demo, echo = 66:67, eval = F}
 ```
+As noted previously, `cNORM` allows the specification of separate age groups for the raw-to-norm-score lookup tables, independently of the groups used for modeling. There are several steps to spefication of these output age groups. Because one component of output is a tabbed, .xlsx workbook, with one tab per age group, we need to specify the labels of these age groups in a character vector, as in the next snippet. Here, the age groups are labeled with their upper- and lower- bounds, expressed in "year.month" format (e.g, `"6.0-6.3"`). The particular labeling format is arbitrary, as these labels are not used directly in the construction of the lookup tables.
+
+```{r cNORM-demo, echo = 68:90, eval = F}
+```
+
+In the next block of code, we use `rawTable()` to construct the raw-to-norm-score lookup tables. The first argument to `rawTable()` is a numerical vector in which we re-specify the output age groups that we defined as character strings in the previous snippet. Here, each age group is expressed as a decimal age value, specifically the mid-point of the age range defined by the groups corresponding text label. For example, `6.167` expresses the mid-point of the age range defined by `"6.0-6.3"`.
+
+```{r cNORM-demo, echo = 91:114, eval = F}
+```
+The remaining arguments to `rawTable()`are as follows:
+
+-   `model`: the norming model created previously by `cnorm()`.
+-   `step`: the raw-score increment for the lookup tables (usually set to `1`).
+-   `minNorm`, `maxNorm`: the lower and upper bounds, respectively of the the range of norm scores that can be looked up in the output tables.
+-   `minRaw`, `maxRaw`: the lower and upper bounds, respectively of the range of raw scores that can be looked up in the output tables (here, `maxRaw` is set to `score_to_norm_max_raw`, a token defined in upstream code).
+-   `pretty`: a table-formatting command (here, it is set to `FALSE` so that we can impose custom formatting on the output tables) .
+```{r cNORM-demo, echo = 115:122, eval = F}
+```
+
+In this example, `rawTable()` is used to create lookup tables for multiple age group. The call of `rawTable()` therefore returns a list of data frames, constituting one lookup table for each age group. We pipe this list into `set_names()` to name each element with the corresponding age-range label from the `tab_names` vector.
+
+We then `map()` several functions over each of the data frames, to apply formatting elements. We call `select(.x, raw, norm)` so that from each data frame (denoted within the `map()` call by the `.x` token), we retain only the `raw` and `norm` columns. This modified element is then passed to `summarize()`, which keeps `raw` in its current numerical format, while rounding and renaming `norm` (to `ss`).
+
+```{r cNORM-demo, echo = 123:127, eval = F}
+```
+
+Here is an example of a lookup table with this formatting applied (and with the middle rows omitted):
+
+```
+raw  ss
+ 1  93
+ 2  96
+ 3  98
+ 4 101
+ 5 104
+ 6 106
+ 
+ ...
+ 
+40 130
+41 130
+42 130
+43 130
+44 130
+```
+
+This kind of table (which we can refer to as a *basic format lookup table*) has several key features:
+
+- Each possible raw score occupies its own row.
+- Not every possible norm score (`ss`) is represented.
+- The "lookup direction" from `raw` to `ss` (an acronym for the IQ-type standard score) is left-to right.
+- The lookup relationship between `raw` and `ss` is many-to-one. That is, each value of `raw` maps onto one and only one value of `ss`, but each value of `ss` may map onto more than one value of `raw` (as is the case with `ss = 130` in this example).
+
+The lookup tables are now generated in the required format and held in the list `norms_list`. The final section of this script prepares the four output elements described at the outset of this narrative: raw-to-SS lookup tables, in both single-table and tabbed format; a reversal report that flags anomalous age-related changes in standard scores; and a model summary that facilitates replication of the analysis.

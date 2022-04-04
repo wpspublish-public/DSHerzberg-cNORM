@@ -55,22 +55,9 @@ map(
                      ))) %>%
   invisible(.)
 
-# read single score input.
-
 input <- suppressMessages(read_csv(here(
   str_c("OUTPUT-FILES/", score_to_norm_file_name)
 )))
-
-# Alex Lenhard's recommended approach
-
-# Use the all-in-one cnorm() function to create the model.
-# Compare diagnostics from two approaches to defining age groups: -
-# 1. use getGroups() to create equal size groups out of the age distributions,
-# use "groups = " argument within cnorm() to refer to column holding this
-# grouping code.
-# 2. omit group argument: cnorm() defaults to rankBySlidingWindow, but this can
-# be problematic when there are few cases on the tails of the age distribution -
-
 
 model <- cnorm(
   raw = input$raw,
@@ -80,17 +67,9 @@ model <- cnorm(
   scale = "IQ"
 )
 
-# The two key diagnostics are plot(model, "series") and checkConsistency(). Both
-# target the same problem: violations of monotonicty, or intersecting percentile
-# curves. With plot(model, "series"), you can use "end" argument to set upper
-# limit of predictors.
 plot(model, "series", end = 8)
 checkConsistency(model)
 
-#Once you have the model, cNORM allows you generate post hoc age groups of any
-#width, centers on any age points you choose. The tab_names token is used for
-#writing out a multi-tabbed norms table, the labels in this token give the lower
-#bound of each age range.
 tab_names <- c(
   "6.0-6.3",
   "6.4-6.7",

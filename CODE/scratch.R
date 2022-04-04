@@ -16,3 +16,5 @@ temp1 <- input_files_ta[[6]] %>%
 temp2 <- temp1[80:95, ]
 
 print(temp2, n = nrow(temp2))
+
+
