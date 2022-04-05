@@ -318,7 +318,7 @@ The remaining arguments to `rawTable()`are as follows:
 
 In this example, `rawTable()` is used to create lookup tables for multiple age group. The call of `rawTable()` therefore returns a list of data frames, constituting one lookup table for each age group. We pipe this list into `set_names()` to name each element with the corresponding age-range label from the `tab_names` vector.
 
-We then `map()` several functions over each of the data frames, to apply formatting elements. We call `select(.x, raw, norm)` so that from each data frame (denoted within the `map()` call by the `.x` token), we retain only the `raw` and `norm` columns. This modified element is then passed to `summarize()`, which keeps `raw` in its current numerical format, while rounding and renaming `norm` (to `ss`).
+We then `map()` several functions over each of the data frames, to apply formatting elements. We call `select(.x, raw, norm)` so that from each data frame (denoted within the `map()` call by the `.x` token), we retain only the `raw` and `norm` columns. This modified element is then passed to `summarize()`, which keeps `raw` in its current numerical format, while rounding and renaming `norm` (to `ss`, an acronym for the IQ-type standard score).
 
 ```{r cNORM-demo, echo = 123:127, eval = F}
 ```
@@ -347,7 +347,17 @@ This kind of table (which we can refer to as a *basic format lookup table*) has 
 
 - Each possible raw score occupies its own row.
 - Not every possible norm score (`ss`) is represented.
-- The "lookup direction" from `raw` to `ss` (an acronym for the IQ-type standard score) is left-to right.
+- The "lookup direction" from `raw` to `ss` is left-to right.
 - The lookup relationship between `raw` and `ss` is many-to-one. That is, each value of `raw` maps onto one and only one value of `ss`, but each value of `ss` may map onto more than one value of `raw` (as is the case with `ss = 130` in this example).
 
-The lookup tables are now generated in the required format and held in the list `norms_list`. The final section of this script prepares the four output elements described at the outset of this narrative: raw-to-SS lookup tables, in both single-table and tabbed format; a reversal report that flags anomalous age-related changes in standard scores; and a model summary that facilitates replication of the analysis.
+To recount, `norms_list` now holds a set of basic format lookup tables, one for each age group. Each of these tables has an identical `raw` column and a unique `ss` column, the latter capturing the raw-to-norm-score lookup relationships for that particular age group. The final section of this script prepares the four output elements described at the outset of this narrative: raw-to-SS lookup tables, in both single-table and tabbed format; a reversal report that flags anomalous age-related changes in standard scores; and a model summary that facilitates replication of the analysis.
+
+The next snippet creates the `reversal_report` data frame. We first pipe `norms_list` into `reduce(left_join, by = "raw")`. `reduce()` applies a function recursively to each element of a list. Here the elements are data frames with identical `raw` columns. `reduce()` thus applies `left_join()` recursively, joining each successive data frame by the `raw` column, with the effect that each iteration adds a new `ss` column to the new data object. When `reduce()` finishes iterating, the list of data frames is transformed into a single data frame. The left-most column is the shared `raw` column that was used as an index for `left_join`, and the right-ward columns are the individual `ss` columns from each list element.
+
+At this stage, however, the `ss` columns lack informative names. We use `set_names()` to apply a set of names consisting of a string (`raw`) and a character vector (`tab_names`). In so doing, we take advantage of the fact that the list elements were ordered by ascending age groups, in the same order embodied by `tab_names`.
+
+Creating a reversal report involves comparing the values of adjacent cells with rows. That kind of process is more easily handled when the data are in long, multi-level format.
+
+```{r cNORM-demo, echo = 128:140, eval = F}
+```
+

@@ -529,7 +529,7 @@ checkConsistency(model)</code></pre>
   pretty = FALSE
 ) %&gt;%</code></pre>
 <p>In this example, <code>rawTable()</code> is used to create lookup tables for multiple age group. The call of <code>rawTable()</code> therefore returns a list of data frames, constituting one lookup table for each age group. We pipe this list into <code>set_names()</code> to name each element with the corresponding age-range label from the <code>tab_names</code> vector.</p>
-<p>We then <code>map()</code> several functions over each of the data frames, to apply formatting elements. We call <code>select(.x, raw, norm)</code> so that from each data frame (denoted within the <code>map()</code> call by the <code>.x</code> token), we retain only the <code>raw</code> and <code>norm</code> columns. This modified element is then passed to <code>summarize()</code>, which keeps <code>raw</code> in its current numerical format, while rounding and renaming <code>norm</code> (to <code>ss</code>).</p>
+<p>We then <code>map()</code> several functions over each of the data frames, to apply formatting elements. We call <code>select(.x, raw, norm)</code> so that from each data frame (denoted within the <code>map()</code> call by the <code>.x</code> token), we retain only the <code>raw</code> and <code>norm</code> columns. This modified element is then passed to <code>summarize()</code>, which keeps <code>raw</code> in its current numerical format, while rounding and renaming <code>norm</code> (to <code>ss</code>, an acronym for the IQ-type standard score).</p>
 <pre class="r"><code>  set_names(tab_names) %&gt;%
   map(~
         select(.x, raw, norm) %&gt;%
@@ -555,10 +555,23 @@ checkConsistency(model)</code></pre>
 <ul>
 <li>Each possible raw score occupies its own row.</li>
 <li>Not every possible norm score (<code>ss</code>) is represented.</li>
-<li>The “lookup direction” from <code>raw</code> to <code>ss</code> (an acronym for the IQ-type standard score) is left-to right.</li>
+<li>The “lookup direction” from <code>raw</code> to <code>ss</code> is left-to right.</li>
 <li>The lookup relationship between <code>raw</code> and <code>ss</code> is many-to-one. That is, each value of <code>raw</code> maps onto one and only one value of <code>ss</code>, but each value of <code>ss</code> may map onto more than one value of <code>raw</code> (as is the case with <code>ss = 130</code> in this example).</li>
 </ul>
-<p>The lookup tables are now generated in the required format and held in the list <code>norms_list</code>. The final section of this script prepares the four output elements described at the outset of this narrative: raw-to-SS lookup tables, in both single-table and tabbed format; a reversal report that flags anomalous age-related changes in standard scores; and a model summary that facilitates replication of the analysis.</p>
+<p>To recount, <code>norms_list</code> now holds a set of basic format lookup tables, one for each age group. The final section of this script prepares the four output elements described at the outset of this narrative: raw-to-SS lookup tables, in both single-table and tabbed format; a reversal report that flags anomalous age-related changes in standard scores; and a model summary that facilitates replication of the analysis.</p>
+<p>The next snippet creates the reversal report.</p>
+<pre class="r"><code>reversal_report &lt;- norms_list %&gt;%
+  reduce(left_join,
+         by = &quot;raw&quot;) %&gt;%
+  set_names(&quot;raw&quot;, tab_names) %&gt;%
+  pivot_longer(-raw, names_to = &quot;agestrat&quot;, values_to = &quot;ss&quot;) %&gt;%
+  group_by(raw) %&gt;%
+  mutate(reversal = case_when(lag(ss) &lt; ss ~ 1)) %&gt;%
+  filter(reversal == 1) %&gt;%
+  select(raw, agestrat) %&gt;%
+  write_csv(here(
+    str_c(&quot;OUTPUT-FILES/&quot;, score_to_norm_stem, &quot;-reversal-report-age.csv&quot;)
+  ))</code></pre>
 </div>
 </div>
 </div>
