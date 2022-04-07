@@ -558,8 +558,23 @@ checkConsistency(model)</code></pre>
 <li>The “lookup direction” from <code>raw</code> to <code>ss</code> is left-to right.</li>
 <li>The lookup relationship between <code>raw</code> and <code>ss</code> is many-to-one. That is, each value of <code>raw</code> maps onto one and only one value of <code>ss</code>, but each value of <code>ss</code> may map onto more than one value of <code>raw</code> (as is the case with <code>ss = 130</code> in this example).</li>
 </ul>
-<p>To recount, <code>norms_list</code> now holds a set of basic format lookup tables, one for each age group. The final section of this script prepares the four output elements described at the outset of this narrative: raw-to-SS lookup tables, in both single-table and tabbed format; a reversal report that flags anomalous age-related changes in standard scores; and a model summary that facilitates replication of the analysis.</p>
-<p>The next snippet creates the reversal report.</p>
+<p>To recount, <code>norms_list</code> now holds a set of basic format lookup tables, one for each age group. Each of these tables has an identical <code>raw</code> column and a unique <code>ss</code> column, the latter capturing the raw-to-norm-score lookup relationships for that particular age group. The final section of this script prepares the four output elements described at the outset of this narrative: raw-to-SS lookup tables, in both single-table and tabbed format; a reversal report that flags anomalous age-related changes in standard scores; and a model summary that facilitates replication of the analysis.</p>
+<p>The next snippet creates the <code>reversal_report</code> data frame. We first pipe <code>norms_list</code> into <code>reduce(left_join, by = &quot;raw&quot;)</code>. <code>reduce()</code> applies a function recursively to each element of a list. Here the elements are data frames with identical <code>raw</code> columns. <code>reduce()</code> thus applies <code>left_join()</code> recursively, joining each successive data frame by the <code>raw</code> column, with the effect that each iteration adds a new <code>ss</code> column to the new data object. When <code>reduce()</code> finishes iterating, the list of data frames is transformed into a single data frame. The left-most column is the shared <code>raw</code> column that was used as an index for <code>left_join</code>, and the right-ward columns are the individual <code>ss</code> columns from each list element.</p>
+<p>At this stage, however, the <code>ss</code> columns lack informative names. We use <code>set_names()</code> to apply a set of names consisting of a string (<code>raw</code>) and a character vector (<code>tab_names</code>). In so doing, we take advantage of the fact that the list elements were ordered by ascending age groups, in the same order embodied by <code>tab_names</code>.</p>
+<p>Creating a reversal report involves comparing the values of adjacent cells with rows. A process of this type is handled more readily when the data are in long, multi-level format, which permits row-wise application of <code>dplyr</code> functions. We transform the data object with <code>pivot_longer(-raw, names_to = &quot;agestrat&quot;, values_to = &quot;ss&quot;)</code>, which returns a long data object with three columns:</p>
+<ul>
+<li><code>raw</code>: the existing raw column is <em>not</em> pivoted (as indicated by the <code>-</code> operator), but is transformed into a Level 2 variable, meaning other Level 1 variables are nested within it. When <code>-raw</code> is passed as the first argument to <code>pivot_longer()</code>, it signifies that all other columns besides <code>raw</code> will be pivoted to long format.</li>
+<li><code>agestrat</code>: the <code>names_to =</code> argument designates this column as the recipient of the <em>names</em> of the pivoted columns from the wide data object. In long format, <code>agestrat</code> is a Level 1 variable, such that all of its values are nested within each value of <code>raw</code>.</li>
+<li><code>ss</code>: the <code>values_to =</code> argument designates this column as the recipient of the <em>cell values</em> from the pivoted columns. <code>ss</code> is also a Level 1 variable, meaning that paired values of <code>agestrat</code> and <code>ss</code> are nested within each value of <code>raw</code>. Thus, in long format, each row contains a raw score and its corresponding standard score within a certain age group, as the following example shows:</li>
+</ul>
+<pre><code>  raw   agestrat      ss
+  1     13.0-13.11    54
+  1     14.0-14.11    51
+  1     15.0-16.11    48
+  1     17.0-18.11    45
+  2     6.0-6.3       96
+  2     6.4-6.7       92
+  2     6.8-6.11      88</code></pre>
 <pre class="r"><code>reversal_report &lt;- norms_list %&gt;%
   reduce(left_join,
          by = &quot;raw&quot;) %&gt;%

@@ -356,7 +356,22 @@ The next snippet creates the `reversal_report` data frame. We first pipe `norms_
 
 At this stage, however, the `ss` columns lack informative names. We use `set_names()` to apply a set of names consisting of a string (`raw`) and a character vector (`tab_names`). In so doing, we take advantage of the fact that the list elements were ordered by ascending age groups, in the same order embodied by `tab_names`.
 
-Creating a reversal report involves comparing the values of adjacent cells with rows. That kind of process is more easily handled when the data are in long, multi-level format.
+Creating a reversal report involves comparing the values of adjacent cells with rows. A process of this type is handled more readily when the data are in long, multi-level format, which permits row-wise application of `dplyr` functions. We transform the data object with `pivot_longer(-raw, names_to = "agestrat", values_to = "ss")`, which returns a long data object with three columns:
+
+- `raw`: the existing raw column is *not* pivoted (as indicated by the `-` operator), but is transformed into a Level 2 variable, meaning other Level 1 variables are nested within it. When `-raw` is passed as the first argument to `pivot_longer()`, it signifies that all other columns besides `raw` will be pivoted to long format.
+- `agestrat`: the `names_to =` argument designates this column as the recipient of the *names* of the pivoted columns from the wide data object. In long format, `agestrat` is a Level 1 variable, such that all of its values are nested within each value of `raw`.
+- `ss`: the `values_to =` argument designates this column as the recipient of the *cell values* from the pivoted columns. `ss` is also a Level 1 variable, meaning that paired values of `agestrat` and `ss` are nested within each value of `raw`. Thus, in long format, each row contains a raw score and its corresponding standard score within a certain age group, as is evident in the following subset of rows from the current data object:
+
+```
+  raw   agestrat      ss
+  1     13.0-13.11    54
+  1     14.0-14.11    51
+  1     15.0-16.11    48
+  1     17.0-18.11    45
+  2     6.0-6.3       96
+  2     6.4-6.7       92
+  2     6.8-6.11      88
+```
 
 ```{r cNORM-demo, echo = 128:140, eval = F}
 ```
