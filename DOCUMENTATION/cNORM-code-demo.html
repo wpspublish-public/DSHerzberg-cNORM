@@ -431,6 +431,9 @@ score_to_norm_max_raw &lt;- data.frame(test = score_to_norm_stem) %&gt;%
                      str_c(&quot;OUTPUT-FILES/&quot;, .y, &quot;-norms-input.csv&quot;)
                    ))) %&gt;%
   invisible(.)</code></pre>
+</div>
+<div id="modeling" class="section level5">
+<h5>2. Modeling</h5>
 <p>The next code block executes the <code>cNORM</code> modeling process, in which age-related development of a latent ability is modeled using raw scores from an normative sample. This model of development is eventually operationalized as a set of raw-to-norm score lookup tables.</p>
 <p>As noted previously, <code>cNORM</code> operates on one raw score at a time. Here, <code>read_csv()</code> is used to read in one of the single-score data frames written out by upstream code. The file path is concatenated from previously initialized tokens. In the present example, <code>iws_sum</code> is the raw score to be normed.</p>
 <p><code>cnorm()</code> is the modeling function, and its arguments are as follows:</p>
@@ -560,8 +563,8 @@ checkConsistency(model)</code></pre>
 </ul>
 <p>To recount, <code>norms_list</code> now holds a set of basic format lookup tables, one for each age group. Each of these tables has an identical <code>raw</code> column and a unique <code>ss</code> column, the latter capturing the raw-to-norm-score lookup relationships for that particular age group. The final section of this script prepares the four output elements described at the outset of this narrative: raw-to-SS lookup tables, in both single-table and tabbed format; a reversal report that flags anomalous age-related changes in standard scores; and a model summary that facilitates replication of the analysis.</p>
 </div>
-<div id="generate-output" class="section level5">
-<h5>??. Generate Output</h5>
+<div id="output" class="section level5">
+<h5>3. Output</h5>
 <p>The next snippet creates the <code>reversal_report</code> data frame. We first pipe <code>norms_list</code> into <code>reduce(left_join, by = &quot;raw&quot;)</code>. <code>reduce()</code> applies a function recursively to each element of a list. Here the elements are data frames with identical <code>raw</code> columns. <code>reduce()</code> thus applies <code>left_join()</code> recursively, joining each successive data frame by the <code>raw</code> column, with the effect that each iteration adds a new <code>ss</code> column to the new data object. When <code>reduce()</code> finishes iterating, the list of data frames is transformed into a single data frame. The left-most column is the shared <code>raw</code> column that was used as an index for <code>left_join</code>, and the right-ward columns are the individual <code>ss</code> columns from each list element.</p>
 <p>At this stage, however, the <code>ss</code> columns lack informative names. We use <code>set_names()</code> to apply a set of names consisting of a string (<code>raw</code>) and a character vector (<code>tab_names</code>). In so doing, we take advantage of the fact that the list elements were ordered by ascending age groups, in the same order as the labels in <code>tab_names</code>.</p>
 <p>Creating a reversal report involves comparing the values of adjacent cells with rows. A process of this type is handled more readily when the data are in long, multi-level format. In long format, the comparison becomes one of adjacent cells within columns, which permits row-wise application of <code>dplyr</code> functions. We transform the data object with <code>pivot_longer(-raw, names_to = &quot;agestrat&quot;, values_to = &quot;ss&quot;)</code>, which returns a long data object with three columns:</p>
@@ -614,13 +617,25 @@ write_csv(table,
           here(
   str_c(&quot;OUTPUT-FILES/&quot;, score_to_norm_stem, &quot;-raw-ss-lookup-table-age.csv&quot;)
 ))</code></pre>
-<p>column into a single data frame (<code>table</code>), and then <code>write_csv()</code> that output.</p>
+<p>Finally, we use <code>capture.output()</code> to write out a summary (as .txt) of the norming model parameters. These parameters are useful in checking and replicating the analysis. Three arguments are passed to <code>capture.output()</code>:</p>
+<ul>
+<li><code>str_c(score_to_norm_stem, &quot; model summary&quot;)</code> is a title line for the summary.</li>
+<li><code>summary(model)</code> captures the reported parameters of <code>model</code> (which is a cNORM object).</li>
+<li><code>file =</code> specifies the file path for the .txt output.</li>
+</ul>
 <pre class="r"><code>capture.output(
   str_c(score_to_norm_stem, &quot; model summary&quot;), 
   summary(model),
   file = here(
     str_c(&quot;OUTPUT-FILES/&quot;, score_to_norm_stem, &quot;-model-summ-age.txt&quot;)  )
 )</code></pre>
+<p>In the example below, <code>User specified solution: 4 terms</code> refers to the value of the <code>terms =</code> argument passed to <code>cnorm()</code>, as described previously. The summary shows that the model is, in fact, a regression equation with four predictors.</p>
+<pre><code>[1] &quot;iws_sum model summary&quot;
+User specified solution: 4 terms
+R-Square Adj. = 0.967654
+Final regression model: raw ~ A1 + L2A2 + L3A3 + L4A4
+Regression function: raw ~ -14.63471243 + (-1.240429481*A1) + (0.0001098877445*L2A2) + (-7.772590394e-08*L3A3) + (1.593753192e-11*L4A4)
+Raw Score RMSE = 1.84052</code></pre>
 </div>
 </div>
 </div>

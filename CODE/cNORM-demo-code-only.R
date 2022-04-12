@@ -154,7 +154,6 @@ write_xlsx(norms_list,
              )
            ))
 
-# write raw-to-ss-lookups to single-sheet table
 table <- norms_list %>%
   reduce(left_join,
          by = "raw") %>%
@@ -165,7 +164,6 @@ write_csv(table,
   str_c("OUTPUT-FILES/", score_to_norm_stem, "-raw-ss-lookup-table-age.csv")
 ))
 
-# write model summary to text file, so you can replicate model later.
 capture.output(
   str_c(score_to_norm_stem, " model summary"), 
   summary(model),

@@ -258,6 +258,8 @@ Because the script writes external files, there's no need to preserve the list o
 ```{r cNORM-demo, echo = 35:53, eval = F}
 ```
 
+##### 2. Modeling
+
 The next code block executes the `cNORM` modeling process, in which age-related development of a latent ability is modeled using raw scores from an normative sample. This model of development is eventually operationalized as a set of raw-to-norm score lookup tables.
 
 As noted previously, `cNORM` operates on one raw score at a time. Here, `read_csv()` is used to read in one of the single-score data frames written out by upstream code. The file path is concatenated from previously initialized tokens. In the present example, `iws_sum` is the raw score to be normed.
@@ -352,7 +354,7 @@ This kind of table (which we can refer to as a *basic format lookup table*) has 
 
 To recount, `norms_list` now holds a set of basic format lookup tables, one for each age group. Each of these tables has an identical `raw` column and a unique `ss` column, the latter capturing the raw-to-norm-score lookup relationships for that particular age group. The final section of this script prepares the four output elements described at the outset of this narrative: raw-to-SS lookup tables, in both single-table and tabbed format; a reversal report that flags anomalous age-related changes in standard scores; and a model summary that facilitates replication of the analysis.
 
-##### ??. Generate Output
+##### 3. Output
 
 The next snippet creates the `reversal_report` data frame. We first pipe `norms_list` into `reduce(left_join, by = "raw")`. `reduce()` applies a function recursively to each element of a list. Here the elements are data frames with identical `raw` columns. `reduce()` thus applies `left_join()` recursively, joining each successive data frame by the `raw` column, with the effect that each iteration adds a new `ss` column to the new data object. When `reduce()` finishes iterating, the list of data frames is transformed into a single data frame. The left-most column is the shared `raw` column that was used as an index for `left_join`, and the right-ward columns are the individual `ss` columns from each list element.
 
@@ -395,11 +397,96 @@ The next element of output is the raw-to-norm-score lookup tables in tabbed, .xl
 Next we generate the output in a single-table format, with a single `raw` column in the far left position, and rightward columns giving the associated norm scores for each age group. As described previously, we use `reduce()` and `set_names()` to transform a list of data frames sharing an identical `raw` column into a single data frame (`table`), and then `write_csv()` that output.
 ```{r cNORM-demo, echo = 150:159, eval = F}
 ```
-Finally, we use `capture.output()` to write out a summary of the norming model parameters that facilitates replication of the analysis.
+Finally, we use `capture.output()` to write out a summary (as .txt) of the norming model parameters. These parameters are useful in checking and replicating the analysis. Three arguments are passed to `capture.output()`:
+
+- `str_c(score_to_norm_stem, " model summary")` is a title line for the summary.
+- `summary(model)` captures the reported parameters of `model` (which is a cNORM object).
+- `file = ` specifies the file path for the .txt output.
+
 ```{r cNORM-demo, echo = 160:166, eval = F}
 ```
 
+In the example below, `User specified solution: 4 terms` refers to the value of the `terms = ` argument passed to `cnorm()`, as described previously. The summary shows that the model is, in fact, a regression equation with four predictors.
 
+```
+[1] "iws_sum model summary"
+User specified solution: 4 terms
+R-Square Adj. = 0.967654
+Final regression model: raw ~ A1 + L2A2 + L3A3 + L4A4
+Regression function: raw ~ -14.63471243 + (-1.240429481*A1) + (0.0001098877445*L2A2) + (-7.772590394e-08*L3A3) + (1.593753192e-11*L4A4)
+Raw Score RMSE = 1.84052
+```
 
 ### Appendix: Grade-Based Norms
+
+Differences in code: no need to calculate continuous age variable. getGroups() not needed because grade levels constitute apriori age groups.
+
+
+# Next block reads an input containing multiple raw score columns per person,
+# processes into separate dfs that are input files into cNORM for norming one
+# raw score. 
+
+# here, the "GradeSemester" variable is coded as an integer (1:26) representing
+# k-fall, k-spring, 1-fall, 1-spring . . . 12-fall, 12-spring. This coding is
+# suitable for input into cNORM modeling, because it represents the equal
+# interval stratification of the school year. You could take the extra step of
+# recoding grade into weeks of schooling (with a linear transformation), but
+# this is not necessary and yields no improvement in the modeling of the norms,
+# according to the cNORM developers.
+map(
+  scores,
+  ~
+    suppressMessages(read_csv(here(
+      str_c(input_file_path, combined_score_to_norm_file_name)
+    ))) %>%
+    select(ID, GradeSemester, !!sym(.x)) %>%
+    drop_na(!!sym(.x)) %>% 
+    rename(raw = !!sym(.x), group = GradeSemester) %>% 
+    select(ID, group, raw) 
+) %>%
+  set_names(scores) %>%
+  map2(scores,
+       ~
+         write_csv(.x,
+                   here(
+                     str_c(input_file_path, .y, "-norms-input.csv")
+                   ))) %>% 
+  invisible(.)
+
+
+# In rawTable(), we pass A = 3:26 as the specification for the lookup table
+# grade strata. This is identical to the coding of GradeSemester on the input
+# side, where 3:26 represents the equal interval grouping structure of 1-fall,
+# 1-spring, 2-fall, .  . ., 12-spring. In the TOD data, testing was performed on
+# indiscriminate dates throughout each semester (as opposed to, say, all testing
+# was done on the monday of the 10th week). Because of this, we can plausibly
+# assume that the 3:26 input vector also represent the midpoint of each semester
+# on the output side, which is what we want for the lookup tables. By centering
+# these tables on the midpoint of each semester, we minimize the residuals of
+# any child's distance (in terms of when in the semester he/she was tested) from
+# that center point.
+
+# Note that the code below includes versions of the A argument for restricted
+# gradestrats of pflsum1 and pflsum2.
+
+norms_list <- rawTable(
+  3:26,
+  # 3:12,
+  # 13:26,
+  model, 
+  step = 1, 
+  minNorm = 40, 
+  maxNorm = 130, 
+  minRaw = 0, 
+  maxRaw = score_to_norm_max_raw,
+  pretty = FALSE
+  ) %>% 
+  set_names(tab_names) %>% 
+  map( 
+    ~
+      select(.x, raw, norm) %>% 
+      summarize(raw = raw,
+                ss = round(norm, 0))
+)
+
 
