@@ -5,7 +5,7 @@ library(writexl)
 suppressMessages(library(lubridate))
 
 urlRemote_path  <- "https://raw.github.com/"
-github_path <- "wpspublish/DSHerzberg-cNORM/master/INPUT-FILES/"
+github_path <- "wpspublish-public/DSHerzberg-cNORM/master/INPUT-FILES/"
 data_file_name <- "cNORM-demo-TOD-input-data.csv"
 
 input_original <- suppressMessages(read_csv(url(
@@ -132,7 +132,6 @@ norms_list <- rawTable(
         summarize(raw = raw,
                   ss = round(norm, 0)))
 
-# prepare reversal report
 reversal_report <- norms_list %>%
   reduce(left_join,
          by = "raw") %>%
@@ -146,10 +145,6 @@ reversal_report <- norms_list %>%
     str_c("OUTPUT-FILES/", score_to_norm_stem, "-reversal-report-age.csv")
   ))
 
-
-# Write raw-to-ss lookups by agestrat into tabbed, xlsx workbook. To create
-# named tabs, supply writexl::write_xlsx() with a named list of dfs for each
-# tab, tab names will be the names of the list elements
 write_xlsx(norms_list,
            here(
              str_c(

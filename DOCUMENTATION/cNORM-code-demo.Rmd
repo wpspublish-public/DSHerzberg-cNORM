@@ -27,7 +27,7 @@ library(writexl)
 suppressMessages(library(lubridate))
 
 urlRemote_path  <- "https://raw.github.com/"
-github_path <- "wpspublish/DSHerzberg-cNORM/master/INPUT-FILES/"
+github_path <- "wpspublish-public/DSHerzberg-cNORM/master/INPUT-FILES/"
 data_file_name <- "cNORM-demo-TOD-input-data.csv"
 
 input_original <- suppressMessages(read_csv(url(
@@ -352,6 +352,8 @@ This kind of table (which we can refer to as a *basic format lookup table*) has 
 
 To recount, `norms_list` now holds a set of basic format lookup tables, one for each age group. Each of these tables has an identical `raw` column and a unique `ss` column, the latter capturing the raw-to-norm-score lookup relationships for that particular age group. The final section of this script prepares the four output elements described at the outset of this narrative: raw-to-SS lookup tables, in both single-table and tabbed format; a reversal report that flags anomalous age-related changes in standard scores; and a model summary that facilitates replication of the analysis.
 
+##### ??. Generate Output
+
 The next snippet creates the `reversal_report` data frame. We first pipe `norms_list` into `reduce(left_join, by = "raw")`. `reduce()` applies a function recursively to each element of a list. Here the elements are data frames with identical `raw` columns. `reduce()` thus applies `left_join()` recursively, joining each successive data frame by the `raw` column, with the effect that each iteration adds a new `ss` column to the new data object. When `reduce()` finishes iterating, the list of data frames is transformed into a single data frame. The left-most column is the shared `raw` column that was used as an index for `left_join`, and the right-ward columns are the individual `ss` columns from each list element.
 
 At this stage, however, the `ss` columns lack informative names. We use `set_names()` to apply a set of names consisting of a string (`raw`) and a character vector (`tab_names`). In so doing, we take advantage of the fact that the list elements were ordered by ascending age groups, in the same order as the labels in `tab_names`.
@@ -378,15 +380,26 @@ In this example, notice how each value of `raw` repeats over the changing pairs 
 ```
 
 
-With the data in this format, we are ready to define what constitutes "reversal" and identify those rows where it occurs. Recall that the fundamental cell-to-cell comparison for reversal was originally defined as between adjacent cells within the rows of the wide-format table. In the long-format object, those rows are now stacked on top of one another in columns, meaning that the *last* cell of the row for `raw = 1` is now adjacent to the *first* cell of the row for `raw = 2`, as can be seen in the subset of rows shown above. It is important that we exclude these "first-last" pairs from the reversal detection process, because the concept of a score reversal is only meaningful for adjacent age groups within a single raw score.
+With the data in this format, we can define "reversal" and identify those rows where it occurs. Recall that the fundamental cell-to-cell comparison for reversal was originally defined as between *horizontally* adjacent cells within the rows of the wide-format table. In the long-format object, those rows are now stacked on top of one another in columns, meaning that the *last* row of the set of rows for `raw = 1` is now *vertically* adjacent to the *first* row of the set of rows row for `raw = 2`, as can be seen in the subset of rows shown above. It is important that we exclude these "first-last" pairs from the reversal detection process, because the concept of a score reversal is only meaningful for adjacent age groups *within* a single raw score.
 
 We can accomplish this exclusion by calling `group_by(raw)`, which essential recreates the row structure of the wide object in the long object by marking the first and last cells of the group of rows for a single raw score. In subsequent functions, the search for reversals will happen only *within* those raw score groups, and not *between* adjacent groups.
 
 We then use `mutate(case_when())` to create a new column `reversal`, which will be coded `1` for any row where a score reversal is detected. The detection of reversals is accomplished within the conditional coding structure of `case_when()`, by applying the predicate test `lag(ss) < ss`. When this predicate returns `TRUE`, it indicates that in that row, the value of `ss` was higher than the value of `ss` in the preceding row. This is the opposite of what we expect from progression of test scores across increasingly older age groups. As the comparison group becomes more able (as the latent ability increase with age), we expect the standard score corresponding to any given raw score to decrease. When that standard score instead increases from one age group to the next, it constitutes a score reversal.
 
-To refine the output, we call `filter(reversal == 1)`, which drops all rows except those were a reversal occurs. This allows the researcher to quickly identify reversed cell pairs in the larger basic format lookup table, rather than having to search the entire table for a possible "needle-in-a-haystack" type phenomenon. We use `select()` to drop the `reversal` marker column, which is now superfluous, and `write_csv()` the output report.
-
-
+To refine the output, we call `filter(reversal == 1)`, which drops all rows except those where a reversal occurs. This allows quick identification of reversed cell pairs in the larger basic format lookup table, rather than having to search the entire table for a "needle-in-a-haystack"-type phenomenon. We use `select()` to drop the `reversal` marker column, which is now superfluous, and `write_csv()` the output report. The resulting report has the same number of rows as the number of score reversals in the basic format lookup tables. The report identifies the locations within the larger table where reversals occur. Thus, each row of the report provides the row (`raw`) and column (`agestrat`) of a cell where a reversal occurs
 ```{r cNORM-demo, echo = 134:140, eval = F}
 ```
+The next element of output is the raw-to-norm-score lookup tables in tabbed, .xlsx format, in which each worksheet (tab) contains the lookup table for a particular age group. To create this output, we use `write_xlsx()`. This function takes the named list `norms_list` and writes each table onto a separate .xlsx tab (within a single workbook), using the name of the list element for the tab name. The output file path for the resulting .xlsx workbook is specified using `here()` (to anchor the path to R project folder) and `str_c` (to concatenate quoted substrings and previously specified tokens into a single string that names the required file path).
+```{r cNORM-demo, echo = 141:149, eval = F}
+```
+Next we generate the output in a single-table format, with a single `raw` column in the far left position, and rightward columns giving the associated norm scores for each age group. As described previously, we use `reduce()` and `set_names()` to transform a list of data frames sharing an identical `raw` column into a single data frame (`table`), and then `write_csv()` that output.
+```{r cNORM-demo, echo = 150:159, eval = F}
+```
+Finally, we use `capture.output()` to write out a summary of the norming model parameters that facilitates replication of the analysis.
+```{r cNORM-demo, echo = 160:166, eval = F}
+```
+
+
+
+### Appendix: Grade-Based Norms
 
