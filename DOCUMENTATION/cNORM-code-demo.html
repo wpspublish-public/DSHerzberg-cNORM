@@ -573,6 +573,7 @@ checkConsistency(model)</code></pre>
 <li><code>agestrat</code>: the <code>names_to =</code> argument designates this new column as the recipient of the <em>names</em> of the pivoted columns from the wide data object. In long format, <code>agestrat</code> is a Level 1 variable, such that all of its values are nested within each value of <code>raw</code>.</li>
 <li><code>ss</code>: the <code>values_to =</code> argument designates this new column as the recipient of the <em>cell values</em> from the pivoted columns. <code>ss</code> is also a Level 1 variable, meaning that paired values of <code>agestrat</code> and <code>ss</code> are nested within each value of <code>raw</code>. Thus, in long format, each row contains a raw score and its corresponding standard score within a certain age group, as is evident in the following subset of rows from the current data object:</li>
 </ul>
+<!-- -->
 <pre><code>  raw   agestrat      ss
   1     13.0-13.11    54
   1     14.0-14.11    51
@@ -641,6 +642,83 @@ Raw Score RMSE = 1.84052</code></pre>
 </div>
 <div id="appendix-grade-based-norms" class="section level3">
 <h3>Appendix: Grade-Based Norms</h3>
+<p>As noted above, an advantage of cNORM when creating age-based norms is its capacity to implement optimized age-stratification, based on the distribution of ages within a particular input data set. In contrast, grade-based norms require the use of predefined age groups (i.e., grade levels). Grade-based norms require certain modifications to the script for age-based norms. These modifications are described below.</p>
+<p>Because age is not used in the grade-based modeling process, the following section of code from the age-based script can be dropped from the grade-based script:</p>
+<pre class="r"><code>age_contin &lt;- input_original %&gt;%
+  mutate(across(c(DOB, admin_date),
+                ~
+                  mdy(.x)),
+         age = (DOB %--% admin_date) / years (1)) %&gt;%
+  bind_cols(getGroups(.$age)) %&gt;%
+  rename(group = ...14) %&gt;%
+  select(ID, age, group)</code></pre>
+<p>The next section of code from the age-based script is:</p>
+<pre><code>map(
+  scores,
+  ~
+    input_original %&gt;%
+    select(ID,!!sym(.x)) %&gt;%
+    drop_na(!!sym(.x)) %&gt;%
+    left_join(age_contin, by = &quot;ID&quot;) %&gt;%
+    rename(raw = !!sym(.x)) %&gt;%
+    select(ID, age, group, raw)
+) %&gt;%</code></pre>
+<p>In the grade-based script, this same section is modified, as in this example:</p>
+<pre><code>map(
+  scores,
+  ~
+    input_original %&gt;% 
+    select(ID, GradeSemester, !!sym(.x)) %&gt;%
+    drop_na(!!sym(.x)) %&gt;% 
+    rename(raw = !!sym(.x), group = GradeSemester) %&gt;% 
+    select(ID, group, raw) 
+) %&gt;%</code></pre>
+<p>Note the differences between the two examples:</p>
+<ul>
+<li><p><code>left_join()</code> is not needed in the grade-based script, because there is no need to bring in the continuous age variable.</p></li>
+<li><p>the two <code>select()</code> lines, as well as the <code>rename()</code> line, differ because of the need to bring in the <code>GradeSemester</code> column, which holds the person-wise grade classifications.</p></li>
+</ul>
+<p><code>GradeSemester</code> (or its equivalent) is usually coded as an integer. For example, it could be coded <code>1:26</code> to represent 26 grade levels (e.g., K-fall, K-spring, 1-fall, 1-spring, . . . 12-fall, 12-spring). This coding is suitable for input into cNORM modeling, because it represents the equal interval stratification of the school year. One could also apply a linear transformation to the integer coding to obtain grade level expressed as weeks of schooling. The modeling process is unaffected by any linear transformtion of the native grade level coding.</p>
+</div>
+<div id="in-rawtable-we-pass-a-326-as-the-specification-for-the-lookup-table" class="section level1">
+<h1>In rawTable(), we pass A = 3:26 as the specification for the lookup table</h1>
+</div>
+<div id="grade-strata.-this-is-identical-to-the-coding-of-gradesemester-on-the-input" class="section level1">
+<h1>grade strata. This is identical to the coding of GradeSemester on the input</h1>
+</div>
+<div id="side-where-326-represents-the-equal-interval-grouping-structure-of-1-fall" class="section level1">
+<h1>side, where 3:26 represents the equal interval grouping structure of 1-fall,</h1>
+</div>
+<div id="spring-2-fall-.-.-.-12-spring.-in-the-tod-data-testing-was-performed-on" class="section level1">
+<h1>1-spring, 2-fall, . . ., 12-spring. In the TOD data, testing was performed on</h1>
+</div>
+<div id="indiscriminate-dates-throughout-each-semester-as-opposed-to-say-all-testing" class="section level1">
+<h1>indiscriminate dates throughout each semester (as opposed to, say, all testing</h1>
+</div>
+<div id="was-done-on-the-monday-of-the-10th-week.-because-of-this-we-can-plausibly" class="section level1">
+<h1>was done on the monday of the 10th week). Because of this, we can plausibly</h1>
+</div>
+<div id="assume-that-the-326-input-vector-also-represent-the-midpoint-of-each-semester" class="section level1">
+<h1>assume that the 3:26 input vector also represent the midpoint of each semester</h1>
+</div>
+<div id="on-the-output-side-which-is-what-we-want-for-the-lookup-tables.-by-centering" class="section level1">
+<h1>on the output side, which is what we want for the lookup tables. By centering</h1>
+</div>
+<div id="these-tables-on-the-midpoint-of-each-semester-we-minimize-the-residuals-of" class="section level1">
+<h1>these tables on the midpoint of each semester, we minimize the residuals of</h1>
+</div>
+<div id="any-childs-distance-in-terms-of-when-in-the-semester-heshe-was-tested-from" class="section level1">
+<h1>any child’s distance (in terms of when in the semester he/she was tested) from</h1>
+</div>
+<div id="that-center-point." class="section level1">
+<h1>that center point.</h1>
+</div>
+<div id="note-that-the-code-below-includes-versions-of-the-a-argument-for-restricted" class="section level1">
+<h1>Note that the code below includes versions of the A argument for restricted</h1>
+</div>
+<div id="gradestrats-of-pflsum1-and-pflsum2." class="section level1">
+<h1>gradestrats of pflsum1 and pflsum2.</h1>
+<p>norms_list &lt;- rawTable( 3:26, # 3:12, # 13:26, model, step = 1, minNorm = 40, maxNorm = 130, minRaw = 0, maxRaw = score_to_norm_max_raw, pretty = FALSE ) %&gt;% set_names(tab_names) %&gt;% map( ~ select(.x, raw, norm) %&gt;% summarize(raw = raw, ss = round(norm, 0)) )</p>
 </div>
 
 
