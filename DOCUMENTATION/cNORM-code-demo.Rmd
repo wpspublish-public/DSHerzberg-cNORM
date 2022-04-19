@@ -353,21 +353,21 @@ This kind of table (which we can refer to as a *basic format lookup table*) has 
 -   The "lookup direction" from `raw` to `ss` is left-to right.
 -   The lookup relationship between `raw` and `ss` is many-to-one. That is, each value of `raw` maps onto one and only one value of `ss`, but each value of `ss` may map onto more than one value of `raw` (as is the case with `ss = 130` in this example).
 
-To recount, `norms_list` now holds a set of basic format lookup tables, one for each age group. Each of these tables has an identical `raw` column and a unique `ss` column, the latter capturing the raw-to-norm-score lookup relationships for that particular age group. The final section of this script prepares the four output elements described at the outset of this narrative: raw-to-SS lookup tables, in both single-table and tabbed format; a reversal report that flags anomalous age-related changes in standard scores; and a model summary that facilitates replication of the analysis.
+To recount, `norms_list` now holds a set of basic format lookup tables, one for each age group. Each of these tables has an identical `raw` column and a unique `ss` column, the latter capturing the raw-to-norm-score lookup relationships for that particular age group. 
 
 ##### 3. Output
 
-The next snippet creates the `reversal_report` data frame. We first pipe `norms_list` into `reduce(left_join, by = "raw")`. `reduce()` applies a function recursively to each element of a list. Here the elements are data frames with identical `raw` columns. `reduce()` thus applies `left_join()` recursively, joining each successive data frame by the `raw` column, with the effect that each iteration adds a new `ss` column to the new data object. When `reduce()` finishes iterating, the list of data frames is transformed into a single data frame. The left-most column is the shared `raw` column that was used as an index for `left_join`, and the right-ward columns are the individual `ss` columns from each list element.
+The final section of this script prepares the four output elements described earlier: raw-to-SS lookup tables, in both single-table and tabbed format; a reversal report that flags anomalous age-related changes in standard scores; and a model summary that facilitates replication of the analysis.
 
-At this stage, however, the `ss` columns lack informative names. We use `set_names()` to apply a set of names consisting of a string (`raw`) and a character vector (`tab_names`). In so doing, we take advantage of the fact that the list elements were ordered by ascending age groups, in the same order as the labels in `tab_names`.
+The next snippet creates the `reversal_report` data frame. We first pipe `norms_list` into `reduce(left_join, by = "raw")`. `reduce()` applies a function recursively to each element of a list. Here the elements are data frames with identical `raw` columns. `reduce()` thus applies `left_join()` recursively, joining each successive data frame by the `raw` column, with the effect that each iteration adds an additional `ss` column to the new data object. When `reduce()` finishes iterating, the list of data frames has been transformed into a single data frame. The left-most column is the shared `raw` column that was used as an index for `left_join()`, and the rightward columns are the individual `ss` columns from each list element.
 
-Creating a reversal report involves comparing the values of adjacent cells with rows. A process of this type is handled more readily when the data are in long, multi-level format. In long format, the comparison becomes one of adjacent cells within columns, which permits row-wise application of `dplyr` functions. We transform the data object with `pivot_longer(-raw, names_to = "agestrat", values_to = "ss")`, which returns a long data object with three columns:
+At this stage, however, the `ss` columns lack informative names. We use `set_names()` to name the columns of the `reversal_report` data frame, supplying a vector of names that consists of a string (`raw`) and a character vector (`tab_names`). In so doing, we take advantage of the fact that the elements of `norms_list` were ordered by ascending age groups, in the same sequence as the labels in `tab_names`.
+
+Creating a reversal report involves comparing the values of adjacent cells *within rows*. A comparison process of this type is handled more readily when the data are in long, multi-level format. In long format, the comparison is between adjacent cells *within columns*, which permits row-wise application of `dplyr` functions. We transform the data object with `pivot_longer(-raw, names_to = "agestrat", values_to = "ss")`, which returns a long data object with three columns:
 
 -   `raw`: the existing raw column is *not* pivoted (as indicated by the `-` operator), but is transformed into a Level 2 variable, meaning other Level 1 variables are nested within it. When `-raw` is passed as the first argument to `pivot_longer()`, it signifies that all other columns besides `raw` will be pivoted to long format.
 -   `agestrat`: the `names_to =` argument designates this new column as the recipient of the *names* of the pivoted columns from the wide data object. In long format, `agestrat` is a Level 1 variable, such that all of its values are nested within each value of `raw`.
 -   `ss`: the `values_to =` argument designates this new column as the recipient of the *cell values* from the pivoted columns. `ss` is also a Level 1 variable, meaning that paired values of `agestrat` and `ss` are nested within each value of `raw`. Thus, in long format, each row contains a raw score and its corresponding standard score within a certain age group, as is evident in the following subset of rows from the current data object:
-
-<!-- -->
 
       raw   agestrat      ss
       1     13.0-13.11    54
@@ -385,13 +385,23 @@ In this example, notice how each value of `raw` repeats over the changing pairs 
 
 With the data in this format, we can define "reversal" and identify those rows where it occurs. Recall that the fundamental cell-to-cell comparison for reversal was originally defined as between *horizontally* adjacent cells within the rows of the wide-format table. In the long-format object, those rows are now stacked on top of one another in columns, meaning that the *last* row of the set of rows for `raw = 1` is now *vertically* adjacent to the *first* row of the set of rows row for `raw = 2`, as can be seen in the subset of rows shown above. It is important that we exclude these "first-last" pairs from the reversal detection process, because the concept of a score reversal is only meaningful for adjacent age groups *within* a single raw score.
 
-We can accomplish this exclusion by calling `group_by(raw)`, which essential recreates the row structure of the wide object in the long object by marking the first and last cells of the group of rows for a single raw score. In subsequent functions, the search for reversals will happen only *within* those raw score groups, and not *between* adjacent groups.
+We can accomplish this exclusion by calling `group_by(raw)`, which essential recreates the row structure of the wide object in the long object by marking the first and last rows of each raw score's group of rows. In subsequent functions, scanning for reversals will occur only *within* a raw score group, and not *between* adjacent raw score groups.
 
-We then use `mutate(case_when())` to create a new column `reversal`, which will be coded `1` for any row where a score reversal is detected. The detection of reversals is accomplished within the conditional coding structure of `case_when()`, by applying the predicate test `lag(ss) < ss`. When this predicate returns `TRUE`, it indicates that in that row, the value of `ss` was higher than the value of `ss` in the preceding row. This is the opposite of what we expect from progression of test scores across increasingly older age groups. As the comparison group becomes more able (as the latent ability increase with age), we expect the standard score corresponding to any given raw score to decrease. When that standard score instead increases from one age group to the next, it constitutes a score reversal.
+We then use `mutate(case_when())` to create a new column `reversal`, which will be coded `1` for any row where a score reversal is detected. The detection of reversals is accomplished within the conditional coding structure of `case_when()`, by applying the predicate test `lag(ss) < ss`. This predicate returns `TRUE` when the value of `ss` is higher than the value of `ss` in the preceding (lag) row. This condition constitutes a score reversal because it is the opposite of what we expect when comparing the lookup outcome for a certain raw score to the lookup outcome for that same raw score in the next oldest age group. As the comparison group becomes more able (as the latent ability increases with increasing age), we expect the standard score corresponding to any given raw score to decrease. When that standard score instead increases from one age group to the next, it constitutes a score reversal.
 
-To refine the output, we call `filter(reversal == 1)`, which drops all rows except those where a reversal occurs. This allows quick identification of reversed cell pairs in the larger basic format lookup table, rather than having to search the entire table for a "needle-in-a-haystack"-type phenomenon. We use `select()` to drop the `reversal` marker column, which is now superfluous, and `write_csv()` the output report. The resulting report has the same number of rows as the number of score reversals in the basic format lookup tables. The report identifies the locations within the larger table where reversals occur. Thus, each row of the report provides the row (`raw`) and column (`agestrat`) of a cell where a reversal occurs
+To refine the output, we call `filter(reversal == 1)`, which drops all rows except those where a reversal occurs. We use `select()` to drop the `reversal` marker column, which is now superfluous, and `write_csv()` the output report. 
 
 ```{r cNORM-demo, echo = 134:140, eval = F}
+```
+
+The resulting `reversal_report` identifies reversal locations within the larger lookup table. Each row of the report points to a location in the larger table by providing the row (`raw`) and column (`agestrat`) of a cell in the larger table where a reversal occurs, as in the example below. This allows quick location of reversals, rather than having to search the entire table for a "needle-in-a-haystack"-type phenomenon. 
+
+```
+raw	  agestrat
+1	  17.0-18.11
+5	  17.0-18.11
+9	  17.0-18.11
+14	  17.0-18.11
 ```
 
 The next element of output is the raw-to-norm-score lookup tables in tabbed, .xlsx format, in which each worksheet (tab) contains the lookup table for a particular age group. To create this output, we use `write_xlsx()`. This function takes the named list `norms_list` and writes each table onto a separate .xlsx tab (within a single workbook), using the name of the list element for the tab name. The output file path for the resulting .xlsx workbook is specified using `here()` (to anchor the path to R project folder) and `str_c` (to concatenate quoted substrings and previously specified tokens into a single string that names the required file path).
@@ -404,10 +414,10 @@ Next we generate the output in a single-table format, with a single `raw` column
 ```{r cNORM-demo, echo = 150:159, eval = F}
 ```
 
-Finally, we use `capture.output()` to write out a summary (as .txt) of the norming model parameters. These parameters are useful in checking and replicating the analysis. Three arguments are passed to `capture.output()`:
+Finally, we use `capture.output()` to write out a .txt summary of the norming model parameters. These parameters are useful in checking and replicating the analysis. Three arguments are passed to `capture.output()`:
 
 -   `str_c(score_to_norm_stem, " model summary")` is a title line for the summary.
--   `summary(model)` captures the reported parameters of `model` (which is a cNORM object).
+-   `summary(model)` captures the reported parameters of the cNORM `model` object.
 -   `file =` specifies the file path for the .txt output.
 
 ```{r cNORM-demo, echo = 160:166, eval = F}
@@ -462,9 +472,9 @@ Note the differences between the two examples:
 
 -   the two `select()` lines, as well as the `rename()` line, differ because of the need to bring in the `GradeSemester` column, which holds the person-wise grade classifications.
 
-`GradeSemester` (or its equivalent) is usually coded as an integer. For example, it could be coded `1:26` to represent 26 grade levels (e.g., K-fall, K-spring, 1-fall, 1-spring, . . . 12-fall, 12-spring). This coding is suitable for input into cNORM modeling, because it represents the equal interval stratification of the school year. One could also apply a linear transformation to the integer coding to obtain grade level expressed as weeks of schooling. The modeling process is unaffected by any linear transformtion of the native grade level coding.
+`GradeSemester` (or its equivalent) is usually coded as an integer. For example, it could be coded `1:26` to represent 26 grade levels (e.g., K-fall, K-spring, 1-fall, 1-spring, . . . , 12-fall, 12-spring). This coding is suitable for cNORM modeling, because it represents the equal-interval stratification of the school year into semesters of equal length. One could also apply a linear transformation to the integer coding to obtain grade level expressed as weeks of schooling. The modeling process is unaffected by any linear transformation of the native grade-level coding.
 
-The next point of difference between the age-based and grade-based scripts is in the specification of `rawTable()` for the generation of raw-to-norm-score lookup tables for output.
+The next difference between the age-based and grade-based scripts is in the specification of `rawTable()` for the generation of raw-to-norm-score lookup tables.
 
 Here is how `rawTable()` is specified in the age-based script:
 
@@ -516,9 +526,5 @@ norms_list <- rawTable(
 ```
 The difference, of course, is in the first argument. In the age-based script, we pass a numerical vector holding the mid-point (expressed in a decimal age metric) of each of the desired age groups. In the grade-based script, we pass `1:26`, the integer vector expressing the equal-interval coding of the grade levels.
 
-To focus a bit further on why grade levels are plausibly represented by an integer vector, consider that in most normative studies, children are tested on various dates throughout each semester (as opposed to, say, a single scheduled testing date for all participants). If we assume that actual testing dates within a semester vary randomly, we can also plausibly assume that each element of the integer vector represents the midpoint of each semester
-# on the output side, which is what we want for the lookup tables. By centering
-# these tables on the midpoint of each semester, we minimize the residuals of
-# any child's distance (in terms of when in the semester he/she was tested) from
-# that center point.
+To focus a bit further on why grade levels are plausibly represented by an integer vector, consider that in most normative studies, children are tested on various dates throughout each semester (as opposed to, say, a single scheduled testing date for all participants). If we assume that actual testing dates within a semester vary randomly, we can also plausibly assume that each element of the integer vector represents the midpoint of the corresponding semester. This mirrors the approach for age-based lookup tables, where we specify the midpoint of each desired age group.
 
