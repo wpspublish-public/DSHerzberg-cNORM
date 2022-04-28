@@ -1,6 +1,9 @@
 ---
-title: "cNORM Code Demonstration"
+title: "Generating raw-to-norm-score lookup tables with cNORM"
 output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
 ---
 
 ```{r setup, include=FALSE}
@@ -11,11 +14,27 @@ knitr::opts_chunk$set(echo = TRUE)
 
 #### Overview
 
-This demonstration uses the cNORM package to create publishable norms tables. The demonstration data is from the Tests of Dyslexia (TOD) project (2021). The input file contains data from the TOD-Comprehensive (TOD-C) standardization study, with 1407 cases ranging in age from 6 to 19. The input file includes demographic information and raw scores from three TOD subtests: Irregular Word Spelling (`iws`), Blending (`bln`), and Segmenting (`seg`).
+This demonstration uses the `cNORM` package to fit a norming model to a
+set of raw scores, and to generate raw-to-norm-score[^1] lookup tables
+based on the model. The demonstration data is from the Tests of Dyslexia
+(TOD) project (2021). The input file contains data from the
+TOD-Comprehensive (TOD-C) standardization study, with 1407 cases ranging
+in age from 6 to 19. The input file includes demographic information and
+raw scores from three TOD subtests: Irregular Word Spelling (`iws`),
+Blending (`bln`), and Segmenting (`seg`).
 
-The script proceeds through data preparation, modeling, and output stages. The output includes raw-to-SS lookup tables, in both single-table and tabbed format; a reversal report that flags anomalous age-related changes in standard scores; and a model summary that facilitates replication of the analysis.
+[^1]: We use "norm scores" as a general term that encompasses specific
+    types of norm scores, such as T scores or IQ-type standard scores.
 
-To run this demonstration, set up an RStudio project called `cNORM`, with subfolders `CODE`, `INPUT-FILES` and `OUTPUT-FILES`. Save scripts in `CODE`, and run them from within the `cNORM` project.
+The script proceeds through data preparation, modeling, and output
+stages. The output includes raw-to-norm-score lookup tables, in both
+single-table and tabbed format; a reversal report that flags anomalous
+age-related changes in norm scores; and a model summary that facilitates
+replication of the analysis.
+
+To run this demonstration, set up an RStudio project called `cNORM`,
+with subfolders `CODE`, `INPUT-FILES` and `OUTPUT-FILES`. Save scripts
+in `CODE`, and run them from within the `cNORM` project.
 
 #### Executable Code
 
@@ -192,31 +211,74 @@ capture.output(
 
 ##### 1. Data Preparation
 
-Load packages for norming (`cNORM`), data wrangling (`tidyverse`), file path specification (`here`), writing .xlsx output (`writexl`), and working with data/time data (`lubridate`). Specifiy file path tokens. `read_csv()` the input data set into `input_original`, using the `url()` function to retrieve data from a remote website. Use `str_c()` to concatenate the file path tokens into a single file path.
+Load packages for norming (`cNORM`), data wrangling (`tidyverse`), file
+path specification (`here`), writing .xlsx output (`writexl`), and
+working with data/time data (`lubridate`). Specifiy file path tokens.
+`read_csv()` the input data set into `input_original`, using the `url()`
+function to retrieve data from a remote website. Use `str_c()` to
+concatenate the file path tokens into a single file path.
 
 ```{r cNORM-demo, echo = 1:14, eval = F}
 ```
 
-Specify score related tokens. `score_to_norm_max_raw` is a numerical vector containing the maximum possible raw score for `score_to_norm_stem` (the score being normed).
+Specify score related tokens. `score_to_norm_max_raw` is a numerical
+vector containing the maximum possible raw score for
+`score_to_norm_stem` (the score being normed).
 
-To generate `score_to_norm_max_raw`, start by using `data.frame(test = score_to_norm_stem)` to initialize a single-cell data frame, with the `test` column holding the name of the score to be normed. Use `mutate()` to create a second column (`max_raw`) containing the maximum value for that score.
+To generate `score_to_norm_max_raw`, start by using
+`data.frame(test = score_to_norm_stem)` to initialize a single-cell data
+frame, with the `test` column holding the name of the score to be
+normed. Use `mutate()` to create a second column (`max_raw`) containing
+the maximum value for that score.
 
-Use `case_when()` to code `max_raw` conditionally, based on the value of `test`. For example, `str_detect(test, "iws_sum")` returns `TRUE` when the value of `test` contains the string `"iws_sum"`. Under that condition, `case_when()` sets the value of `max_raw` to `44`.
+Use `case_when()` to code `max_raw` conditionally, based on the value of
+`test`. For example, `str_detect(test, "iws_sum")` returns `TRUE` when
+the value of `test` contains the string `"iws_sum"`. Under that
+condition, `case_when()` sets the value of `max_raw` to `44`.
 
-`mutate()` returns a two-column data frame. Use `pull()` to extract the value of `max_raw` into the vector `score_to_norm_max_raw`.
+`mutate()` returns a two-column data frame. Use `pull()` to extract the
+value of `max_raw` into the vector `score_to_norm_max_raw`.
 
 ```{r cNORM-demo, echo = 16:24, eval = F}
 ```
 
-A useful feature of `cNORM` is its capacity to implement optimized age-stratification, constructing age groups that are best suited to the modeling of age-related score changes, based on the characteristics of a particular input data set. Often, *a priori* age groups, which serve the needs of the users of published norms, do not stratify the input sample in the way that best supports the `cNORM` modeling functions. After `cNORM` generates a norming model base on optimized age-stratification, the operator can specify a different age-stratification scheme for the raw-to-norm-score lookup tables. Thus it is possible to recreate the *a priori* age groups in the final output of `cNORM`, in order to support clinical application of the published norms tables.
+A useful feature of `cNORM` is its capacity to implement optimized
+age-stratification, constructing age groups that are best suited to the
+modeling of age-related score changes, based on the characteristics of a
+particular input data set. Often, *a priori* age groups, which serve the
+needs of the users of published norms, do not stratify the input sample
+in the way that best supports the `cNORM` modeling functions. After
+`cNORM` generates a norming model base on optimized age-stratification,
+the operator can specify a different age-stratification scheme for the
+raw-to-norm-score lookup tables. Thus it is possible to recreate the *a
+priori* age groups in the final output of `cNORM`, in order to support
+clinical application of the published norms tables.
 
-We invoke `cNORM`'s age-stratification function by calling `cNORM::getGroups()`, which creates a new data frame `age_contin` to hold a continuous age variable (in decimal format) for each case in the input file. We use `mutate(across())` and `lubridate::mdy()` to coerce the date variables (`DOB`, `admin_date`), which are strings in the input file, into a numeric date-time format. Within `mdy()`, the `.x` token represents the variables designated for transformation by `across()`.
+We invoke `cNORM`'s age-stratification function by calling
+`cNORM::getGroups()`, which creates a new data frame `age_contin` to
+hold a continuous age variable (in decimal format) for each case in the
+input file. We use `mutate(across())` and `lubridate::mdy()` to coerce
+the date variables (`DOB`, `admin_date`), which are strings in the input
+file, into a numeric date-time format. Within `mdy()`, the `.x` token
+represents the variables designated for transformation by `across()`.
 
-Within the same call of `mutate()`, we calculate a new decimal-format `age` variable. The `%--%` operator of `lubridate` creates an arithmetic date-time interval, or duration, between a start date (here `DOB`) and an end date (here `admin_date`). Dividing this interval, which represents chronological age, by a time period (here `years(1)`, which returns 1 year as an arithmetic date-time period), converts chronological age expressed as years-months-days (e.g., 5 years, 6 months, 0 days) in to a decimal-format age value (e.g., 5.5).
+Within the same call of `mutate()`, we calculate a new decimal-format
+`age` variable. The `%--%` operator of `lubridate` creates an arithmetic
+date-time interval, or duration, between a start date (here `DOB`) and
+an end date (here `admin_date`). Dividing this interval, which
+represents chronological age, by a time period (here `years(1)`, which
+returns 1 year as an arithmetic date-time period), converts
+chronological age expressed as years-months-days (e.g., 5 years, 6
+months, 0 days) in to a decimal-format age value (e.g., 5.5).
 
-By specifying `getGroups(.$age)` we enable `getGroups()` to operate on the `age` column of the current data object.
+By specifying `getGroups(.$age)` we enable `getGroups()` to operate on
+the new `age` column of the current data object.
 
-By default, `getGroups()` attempts to form equal-sized age groups with about 100 cases each. Below are the labels for the 15 age groups that `getGroups()` created from the input sample, which has 1407 cases. Each label is the arithmetic mean of the `age` variable for the cases assigned to that group.
+By default, `getGroups()` attempts to form equal-sized age groups with
+about 100 cases each. Below are the labels for the 15 age groups that
+`getGroups()` created from the input sample, which has 1407 cases. Each
+label is the arithmetic mean of the `age` variable for the cases
+assigned to that group.
 
     6.964081  
     8.016325  
@@ -234,101 +296,258 @@ By default, `getGroups()` attempts to form equal-sized age groups with about 100
     16.688863
     17.971970
 
-Wrapping `getGroups()` in `bind_cols()` adds a new column to the input data object. This new column, which is provisionally named `...14` for its position in the current data object, contains the age-group assignment for each case in the input sample. We complete the setup of the `age_contin` data frame by renaming `...14` to the more meaningful `group`, and keeping only required columns with `select()`.
+Wrapping `getGroups()` in `bind_cols()` adds a new column to the input
+data object. This new column, which is provisionally named `...14` for
+its position in the current data object, contains the age-group
+assignment for each case in the input sample. We complete the setup of
+the `age_contin` data frame by renaming `...14` to the more meaningful
+`group`, and keeping only required columns with `select()`.
 
 ```{r cNORM-demo, echo = 26:34, eval = F}
 ```
 
-The `cNORM` modeling functions operate on one raw score at a time. For tests with multiple subtest scores, the workflow is to feed one score at a time through the `cNORM` functions. The next code block partitions the example data file, which contains three subtest raw scores for each case, into separate data frames for each score. These data frames contain only the variables needed by `cNORM`.
+The `cNORM` modeling functions operate on one raw score at a time. For
+tests with multiple subtest scores, therefore, we can run this script
+repeatedly, processing one score at a time. The next code block
+partitions the example data file, which contains three subtest raw
+scores for each case, into separate data frames for each score. These
+data frames contain only the variables needed by `cNORM`.
 
-The code includes two iterative segments. In the first, `map()` is used to apply a series of functions to each element of the `scores` vector, which contains the names of the three subtest scores in the input data set. Within `map`, `.x` represents the currently-iterated element of the `scores` vector (i.e., the name of a subtest score).
+The code includes two iterative segments. In the first, `map()` is used
+to apply a series of functions to each element of the `scores` vector,
+which contains the names of the three subtest scores in the input data
+set. Within `map`, `.x` represents the currently-iterated element of the
+`scores` vector (i.e., the name of a subtest score).
 
-In the function pipeline, `input_original` is sent to `select` to subset only the columns required by `cNORM`, which are the case `ID` and the subtest score to be normed. Because the vector `scores` contains quoted strings, and `select()` expects unquoted column names, `!!sym(.x)` is used to unquote the currently iterated subtest name. This same unquoting function is used elsewhere in this pipeline.
+In the function pipeline, `input_original` is sent to `select` to subset
+only the columns required by `cNORM`, which are the case `ID` and the
+subtest score to be normed. Because the vector `scores` contains quoted
+strings, and `select()` expects unquoted column names, `!!sym(.x)` is
+used to unquote the currently iterated subtest name. This same unquoting
+function is used elsewhere in this pipeline.
 
-`drop_na()` deletes rows (cases) that are missing the subtest score currently being normed. `left_join()` joins the columns of the current object with those of the previously created `age_contin`, matching cases `by = "ID"`. To obtain the column configuration required by `cNORM`, `rename()` changes the subtest score name to the generic `raw`, and `select(ID, age, group, raw)` subsets the columns in the preferred left-right sequence.
+`drop_na()` deletes rows (cases) that are missing the subtest score
+currently being normed. `left_join()` joins the columns of the current
+object with those of the previously created `age_contin`, matching cases
+`by = "ID"`. To obtain the column configuration required by `cNORM`,
+`rename()` changes the subtest score name to the generic `raw`, and
+`select(ID, age, group, raw)` subsets the columns in the preferred
+left-right sequence.
 
-At this point, `map()` finishes iterating and returns a list of unnamed data frames, one for each subtest score, containing the variables required by `cNORM`. `set_names(scores)` is used to name each data frame with its corresponding subtest label.
+At this point, `map()` finishes iterating and returns a list of unnamed
+data frames, one for each subtest score, containing the variables
+required by `cNORM`. `set_names(scores)` is used to name each data frame
+with its corresponding subtest label.
 
-Next, the list of data frames is piped into `map2()`, which enables simultaneous parallel iteration over two inputs of equal length (tokenized as `.x` and `.y`). In this call of `map2()`, the current piped object (the list of data frames) is the `.x` input, and the `scores` vector is the `.y` input. Both inputs have three elements (i.e., they are of equal length).
+Next, the list of data frames is piped into `map2()`, which enables
+simultaneous parallel iteration over two inputs of equal length
+(tokenized as `.x` and `.y`). In this call of `map2()`, the current
+piped object (the list of data frames) is the `.x` input, and the
+`scores` vector is the `.y` input. Both inputs have three elements
+(i.e., they are of equal length).
 
-The purpose of the `map2()` call is to write each of the data frames on the input list to an external `.csv` file, where it can then be read back in for processing by `cNORM`. `write_csv()` is used to write the currently iterated `.x` data frame to a file path/file name that includes that currently iterated `.y` subtest score name. `here()` anchors the file path in the `cNORM` project folder, and `str_c()` concatenates three string elements, including the `.y` name, into a new string that is the file path.
+The purpose of the `map2()` call is to write each of the data frames on
+the input list to an external `.csv` file, where it can then be read
+back in for processing by `cNORM`. `write_csv()` is used to write the
+currently iterated `.x` data frame to a file path/file name that
+includes that currently iterated `.y` subtest score name. `here()`
+anchors the file path in the `cNORM` project folder, and `str_c()`
+concatenates three string elements, including the `.y` name, into a new
+string that is the file path.
 
-Because the script writes external files, there's no need to preserve the list of subtest specific data frames in the global environment. The last function in the pipeline, `invisible()`, ensures that the list object neither prints to the console nor appears in the global environment.
+Because the script writes external files, there's no need to preserve
+the list of subtest-specific data frames in the global environment. The
+last function in the pipeline, `invisible(.)`, ensures that the list
+object neither prints to the console nor appears in the global
+environment. Here, as elsewhere in the code, `.` is a token designating
+the current data object in the pipeline.
 
 ```{r cNORM-demo, echo = 35:53, eval = F}
 ```
 
 ##### 2. Modeling
 
-The next code block executes the `cNORM` modeling process, in which age-related development of a latent ability is modeled using raw scores from an normative sample. This model of development is eventually operationalized as a set of raw-to-norm score lookup tables.
+The next code block executes the `cNORM` modeling process, in which
+age-related development of a latent ability is modeled using raw scores
+from a normative sample. This model of development is eventually
+operationalized as a set of raw-to-norm score lookup tables.
 
-As noted previously, `cNORM` operates on one raw score at a time. Here, `read_csv()` is used to read in one of the single-score data frames written out by upstream code. The file path is concatenated from previously initialized tokens. In the present example, `iws_sum` is the raw score to be normed.
+As noted previously, `cNORM` operates on one raw score at a time. Here,
+`read_csv()` is used to read in one of the single-score data frames
+written out by upstream code. The resulting object is named `input`. The
+file path is concatenated from previously initialized tokens. In the
+present example, `iws_sum` is the raw score to be normed.
 
 `cnorm()` is the modeling function, and its arguments are as follows:
 
--   `raw`: designates the raw score column in the input data file (here `input$raw`).
--   `group`: designates the age group column in the input data file (here `input$group`).
--   `k`: a power constant that sets the limit on the expansion of the Taylor polynomial series, which controls the precision of estimation of the normative curve. The default value is 4, and values of 3 and 5 can used in searching for an acceptable model. `k = 5` is computationally intensive and entails processing times of 5 to 10 minutes on many CPUs.
--   `terms`: sets the number of terms in the regression equation that expresses the normative model. `cnorm()` finds the best-fitting model with this number of terms. By convention, we use a starting value of 4 for `terms`.
--   `scale`: sets the metric of the norm score. Values can be `"IQ"`,`"T"`,`"z"`, `"percentile"`, or a vector that provides the mean and standard deviation of the preferred metric (e.g., `c(10, 3)`).
+-   `raw`: designates the raw score column in the input data file (here
+    `input$raw`).
+-   `group`: designates the age group column in the input data file
+    (here `input$group`).
+-   `k`: a power constant that sets the limit on the expansion of the
+    Taylor polynomial series, which controls the precision of estimation
+    of the normative curve. The default value is 4, and values of 3 and
+    5 can used in searching for an acceptable model. `k = 5` is
+    computationally intensive and entails processing times of several minutes or more on many CPUs.
+-   `terms`: sets the number of terms in the regression equation that
+    expresses the normative model. `cnorm()` finds the best-fitting
+    model with this number of terms. By convention, we use a starting
+    value of 4 for `terms`.
+-   `scale`: sets the metric of the norm score. Values can be
+    `"IQ"`,`"T"`,`"z"`, `"percentile"`, or a vector that provides the
+    mean and standard deviation of the preferred metric (e.g.,
+    `c(10, 3)`).
 
 ```{r cNORM-demo, echo = 54:64, eval = F}
 ```
 
-The initial output of `cnorm()` is a model summary printed in the console, and a plot of the observed and predicted percentile curves associated with the norming model. The plot shown below is for the `iws` raw score in the input sample.
+The initial output of `cnorm()` is a model summary printed in the
+console, and a plot of the observed and predicted percentile curves
+associated with the norming model. The plot shown below is for the `iws`
+raw score in the input sample.
 
-At this point, the norming process and workflow extends outside the mere sequential execution of this script. The initial model is evaluated, using diagnostic tools available within `cNORM`. If this initial model is judged acceptable, the output phase of the norms process can proceed. However, if the initial model is problematic, we then re-run the `cnorm()` function wtih different values of `k` and `terms`, and examine these subsequent models with the diagnostic aids, repeating the process until we settle on a model that is acceptable (or, at least, the model with the fewest observable flaws).
+At this point, the norming process and workflow extends outside the mere sequential execution of this script. The initial model is evaluated, using diagnostic tools available within `cNORM`. If this initial model is judged acceptable, the output phase of the norms process can proceed. However, if the initial model is problematic, we re-run the `cnorm()` function with different values of `k` and `terms`, and examine these subsequent models with the diagnostic aids, repeating the process until we settle on a model that is acceptable (or, at least, the model with the fewest observable flaws).
 
-*Monotonicity* is the primary criterion by which we evaluate the norming model. In most cases, we expect that when we test a cognitive ability that develops through childhood, raw scores will increase monotonically (that is, increase without ever decreasing) with increasing age. It follows that a specific raw score is expected to be associated with progressively lower norm scores as age increases. This occurs because we expect the mean raw score to increase from one age group to the next, and, consequently, an identical raw score moves to a lower rank in the next oldest age group, and so on.
+*Monotonicity* is the primary criterion by which we evaluate the norming
+model. When we test a developing cognitive ability, we expect raw scores
+to increase monotonically (that is, increase without ever decreasing)
+with increasing age. It follows that a specific raw score is expected to
+be associated with progressively lower norm scores as age increases.
+This occurs because the mean raw score increases from one age group to
+the next, and, consequently, an identical raw score moves to a lower
+rank in the next oldest age group, and so on.
 
-The best way to check monotonicity after running `cNORM()` is to examine the plot of percentile curves associated with the model. In this plot, the x-axis variable is age group, and the y-axis variable is raw score. The plot illustrates seven percentile ranks: 2.5, 10, 25, 50, 75, 90, 97.5. The colored circles represent the actual raw scores associated with these percentiles, per age group, in the input data. The solid lines represent the outcome of the modeling process, whereby the selected regression equation is used to smooth the age-related progression of each percentile rank.
+The best way to check monotonicity after running `cnorm()` is to examine
+the plot of percentile curves associated with the model. In this plot,
+the x-axis variable is age group, and the y-axis variable is raw score.
+The plot illustrates seven percentile ranks: 2.5, 10, 25, 50, 75, 90,
+97.5. The colored circles represent the actual raw scores associated
+with these percentiles, per age group, in the input data. The solid
+lines represent the outcome of the modeling process, whereby the
+selected regression equation is used to smooth the age-related
+progression of each percentile rank.
 
-If those curves *do not* intersect (as in the example below), the model is adequate and we can proceed to norming output. When the plot shows intersecting percentile curves, it indicates an unexpected change in the raw to norm-score relationship from one age group to the next. For example, it may show that certain raw scores are associated with *higher* norm scores in the next oldest age group. This counter-intuitive outcome is referred to as a norm-score *reversal*.
+If those curves *do not* intersect (as in the example below), the model
+exhibits adequate monotonicity, and we can proceed to generating the
+norming output. When the plot shows intersecting percentile curves, it
+indicates an unexpected change in the raw to norm-score relationship
+from one age group to the next (i.e., an absence of monotonicity). For
+example, it may reveal that certain raw scores are associated with
+*higher* norm scores in the next oldest age group. This
+counter-intuitive outcome is referred to as a norm-score *reversal*.
 
-The plot also show the proportion of variance in raw scores that is explained by the regression model (here, R^2^ = 0.9677). This value is often quite large, even in models that lack monotonicity. For our purposes, R^2^ is less important than monotonicity in terms of evaluating the adequacy of the model.
+The plot also show the proportion of variance in raw scores that is
+explained by the regression model (here, R^2^ = 0.9677). This value is
+often quite large, even in models that lack monotonicity. For our
+purposes, R^2^ is less important than monotonicity in terms of
+evaluating the adequacy of the model.
 
 ![](/Users/dherzberg/OneDrive%20-%20Western%20Psychological%20Services/Desktop/R/cNORM/DOCUMENTATION/cNORM-code-demo-plot.png)
 
-Usually, the presence of intersecting percentile curves prompts re-running the `cnorm()` modelling function with different parameters (i.e., different values of `k` and `terms`), in order to find a model that yields the optimal non-intersecting percentile curves. To select the best parameters, we use another diagnostic tool: `plot(model, "series", end = 8)`. This call of `plot()` returns a series of percentile graphs for `terms = 1` through `terms = 8`. Often, varying the number of regression terms in the model will result in the preservation of monotonically, as is visible in the associated plot.
+When the plot shows intersecting percentile curves, we re-run the
+`cnorm()` modeling function with different parameters (i.e., different
+values of `k` and `terms`), in order to find a model that yields non-intersecting curves (if such a model exists). To examine alternative models, we use
+another diagnostic tool: `plot(model, "series", end = 8)`. This call of
+`plot()` returns a series of percentile graphs for `terms = 1` through
+`terms = 8`. Often, varying the number of regression terms will result
+in a plot with non-intersecting curves.
 
-In general, parsimony applies: it is best to select a model with fewer terms, all else being equal. Increase the number of terms increases the likelihodd of *overfitting* the model (that is, modeling error in addition to the latent ability being evaluated). In the plots, overfitting is visualized in curves that twist and turn sharply around the raw score data points (colored circles). In contrast, a properly fitted model will yield smoothly increasing parallel colored lines.
+In general, parsimony applies: it's best to select a model with fewer
+terms, all else being equal. Increasing the number of terms increases
+the risk of *overfitting* the model (that is, modeling error in
+addition to the developmental gradient of the latent ability). In the
+percentile plot, an overfitted model is visualized in curves that twist
+and turn sharply around the raw score data points (colored circles). In
+contrast, a properly fitted model will yield smoothly increasing
+parallel colored lines.
 
-Another diagnostic aid is `checkConsistency(model)`, which offers a programmatic check on monotonicity. When `checkConsistency()` returns `FALSE`, it indicates that the norming model is adequately specified, with no violations of monotonicity. If `checkConsistency()` finds problems with the model, it returns the ages at which violations of monotonicity are identified. These findings can be checked against the model plot. In addition, we can generate raw-to-norm score lookup tables based on a problematic model, to see where score reversals occur.
+Another diagnostic aid is `checkConsistency(model)`, which offers a
+programmatic check on monotonicity. When `checkConsistency()` returns
+`FALSE`, it indicates that the norming model is adequately specified,
+with no violations of monotonicity. If `checkConsistency()` finds
+problems with the model, it returns the ages at which violations of
+monotonicity are identified. These findings can be checked against the
+model plot. In addition, we can generate raw-to-norm score lookup tables
+based on a problematic model, to see where score reversals occur.
 
-A final note about model specification is that with some data sets, it may not be possible to find a model that is completely free of violations of monotonicity. Finalizing the norms then becomes a process of selecting the best of a series of problematic models, and then smoothing the resulting raw-to-norm-score lookup tables by hand.
+A final note about model specification is that with some data sets, it
+may not be possible to find a norming model that is completely free of
+violations of monotonicity. Finalizing the norms then becomes a process
+of selecting the least-flawed model, and then
+manually correcting score reversals and other anomalies in the resulting raw-to-norm-score lookup tables.
 
 ```{r cNORM-demo, echo = 66:67, eval = F}
 ```
 
-As noted previously, `cNORM` allows the specification of separate age groups for the raw-to-norm-score lookup tables, independently of the groups used for modeling. There are several steps to spefication of these output age groups. Because one component of output is a tabbed, .xlsx workbook, with one tab per age group, we need to specify the labels of these age groups in a character vector, as in the next snippet. Here, the age groups are labeled with their upper- and lower- bounds, expressed in "year.month" format (e.g, `"6.0-6.3"`). The particular labeling format is arbitrary, as these labels are not used directly in the construction of the lookup tables.
+##### 3. Output
+
+The final section of this script prepares the four output elements
+described earlier: raw-to-norm score lookup tables, in both single-table
+and tabbed format; a reversal report that flags anomalous age-related
+changes in standard scores; and a model summary that facilitates
+replication of the analysis.
+
+`rawTable()` is the `cNORM` function that generates raw-to-norm-score
+lookup tables. As noted previously, the age stratification scheme for
+the lookup tables need not be the same one that was used for normative
+modeling. To specify a new age stratification for output, we first
+create a character vector (`tab_names`) holding text labels for the age
+groups. Here, the the labels provide the upper- and lower- bounds of
+each age group, expressed in "year.month" format (e.g, `"6.0-6.3"`). We
+use these strings as tab labels for one component of output: a tabbed,
+.xlsx workbook, with one tab per age group. In this character vector,
+the particular labeling format is arbitrary (e.g., "6 years, 0 months to
+6 years, 3 months" would also work).
 
 ```{r cNORM-demo, echo = 68:90, eval = F}
 ```
 
-In the next block of code, we use `rawTable()` to construct the raw-to-norm-score lookup tables. The first argument to `rawTable()` is a numerical vector in which we re-specify the output age groups that we defined as character strings in the previous snippet. Here, each age group is expressed as a decimal age value, specifically the mid-point of the age range defined by the groups corresponding text label. For example, `6.167` expresses the mid-point of the age range defined by `"6.0-6.3"`.
+Next, we re-specify this age stratification scheme as a numerical
+vector, which we pass as the first argument to `rawTable()`. Here, each
+age group is expressed as a decimal age value: the mid-point of the age
+range defined by the group's corresponding text label. For example,
+`6.167` expresses the mid-point of the age range defined by `"6.0-6.3"`.
 
 ```{r cNORM-demo, echo = 91:114, eval = F}
 ```
 
-The remaining arguments to `rawTable()`are as follows:
+The remaining arguments to `rawTable()`are:
 
 -   `model`: the norming model created previously by `cnorm()`.
--   `step`: the raw-score increment for the lookup tables (usually set to `1`).
--   `minNorm`, `maxNorm`: the lower and upper bounds, respectively of the the range of norm scores that can be looked up in the output tables.
--   `minRaw`, `maxRaw`: the lower and upper bounds, respectively of the range of raw scores that can be looked up in the output tables (here, `maxRaw` is set to `score_to_norm_max_raw`, a token defined in upstream code).
--   `pretty`: a table-formatting command (here, it is set to `FALSE` so that we can impose custom formatting on the output tables) .
+-   `step`: the raw-score increment for the lookup tables (usually set
+    to `1`).
+-   `minNorm`, `maxNorm`: the lower and upper bounds, respectively of
+    the the range of *norm scores* that can be looked up in the output
+    tables.
+-   `minRaw`, `maxRaw`: the lower and upper bounds, respectively of the
+    range of *raw scores* that can be looked up in the output tables
+    (here, `maxRaw` is set to `score_to_norm_max_raw`, a token defined
+    in upstream code).
+-   `pretty`: a table-formatting command (here, it is set to `FALSE` so
+    that we can impose custom formatting on the output tables) .
 
 ```{r cNORM-demo, echo = 115:122, eval = F}
 ```
 
-In this example, `rawTable()` is used to create lookup tables for multiple age group. The call of `rawTable()` therefore returns a list of data frames, constituting one lookup table for each age group. We pipe this list into `set_names()` to name each element with the corresponding age-range label from the `tab_names` vector.
+When `rawTable()` is used in this manner to create lookup tables for
+multiple age groups, it returns a list of data frames, constituting one
+lookup table for each age group. We pipe this list into `set_names()` to
+name each date frame with the corresponding age-range label from the
+`tab_names` vector.
 
-We then `map()` several functions over each of the data frames, to apply formatting elements. We call `select(.x, raw, norm)` so that from each data frame (denoted within the `map()` call by the `.x` token), we retain only the `raw` and `norm` columns. This modified element is then passed to `summarize()`, which keeps `raw` in its current numerical format, while rounding and renaming `norm` (to `ss`, an acronym for the IQ-type standard score).
+We then `map()` several functions over each of the data frames, to apply
+formatting elements. We call `select(.x, raw, norm)` so that from each
+data frame (denoted within the `map()` call by the `.x` token), we
+retain only the `raw` and `norm` columns. This modified element is then
+passed to `summarize()`, which keeps `raw` in its current numerical
+format, while rounding and renaming `norm` (to `ss`, an acronym for the
+IQ-type standard score).
 
 ```{r cNORM-demo, echo = 123:127, eval = F}
 ```
 
-Here is an example of a lookup table with this formatting applied (and with the middle rows omitted):
+Here is an example of a lookup table with this formatting applied (and
+with the middle rows omitted):
 
     raw  ss
      1  93
@@ -346,84 +565,185 @@ Here is an example of a lookup table with this formatting applied (and with the 
     43 130
     44 130
 
-This kind of table (which we can refer to as a *basic format lookup table*) has several key features:
+This kind of table (which we can refer to as a *basic format lookup
+table*) has several key features:
 
 -   Each possible raw score occupies its own row.
 -   Not every possible norm score (`ss`) is represented.
 -   The "lookup direction" from `raw` to `ss` is left-to right.
--   The lookup relationship between `raw` and `ss` is many-to-one. That is, each value of `raw` maps onto one and only one value of `ss`, but each value of `ss` may map onto more than one value of `raw` (as is the case with `ss = 130` in this example).
+-   The lookup relationship between `raw` and `ss` is many-to-one. That
+    is, each value of `raw` maps onto one and only one value of `ss`,
+    but each value of `ss` may map onto more than one value of `raw` (as
+    is the case with `ss = 130` in this example).
 
-To recount, `norms_list` now holds a set of basic format lookup tables, one for each age group. Each of these tables has an identical `raw` column and a unique `ss` column, the latter capturing the raw-to-norm-score lookup relationships for that particular age group. 
+To recount, `norms_list` now holds a set of basic format lookup tables,
+one for each age group. Each of these tables has an identical `raw`
+column (holding all possible values of `raw`) and a unique `ss` column,
+the latter capturing the raw-to-norm-score lookup relationships for that
+particular age group.
 
-##### 3. Output
+Recall that one element of the normative output is a reversal report
+that identifies unexpected age-related changes in norm scores. The next
+snippet creates the `reversal_report` data frame. We first pipe
+`norms_list` into `reduce(left_join, by = "raw")`. `reduce()` applies a
+function recursively to each element of a list. Here the elements are
+data frames with identical `raw` columns. `reduce()` thus applies
+`left_join()` recursively, joining each successive data frame by the
+`raw` column, such that each iteration adds an additional `ss` column to
+the new data object. When `reduce()` finishes iterating, the list of
+data frames has been transformed into a single data frame. The left-most
+column is the shared `raw` column that was used as an index for
+`left_join()`, and the rightward columns are the individual `ss` columns
+from each age-specific lookup table.
 
-The final section of this script prepares the four output elements described earlier: raw-to-SS lookup tables, in both single-table and tabbed format; a reversal report that flags anomalous age-related changes in standard scores; and a model summary that facilitates replication of the analysis.
+At this stage, however, the `ss` columns lack informative names. We use
+`set_names()` to name the columns of the `reversal_report` data frame,
+supplying a vector of names that consists of a string (`raw`) and a
+character vector (`tab_names`). In so doing, we take advantage of the
+fact that the elements of `norms_list` were ordered by ascending age
+groups, in the same sequence as the labels in `tab_names`.
 
-The next snippet creates the `reversal_report` data frame. We first pipe `norms_list` into `reduce(left_join, by = "raw")`. `reduce()` applies a function recursively to each element of a list. Here the elements are data frames with identical `raw` columns. `reduce()` thus applies `left_join()` recursively, joining each successive data frame by the `raw` column, with the effect that each iteration adds an additional `ss` column to the new data object. When `reduce()` finishes iterating, the list of data frames has been transformed into a single data frame. The left-most column is the shared `raw` column that was used as an index for `left_join()`, and the rightward columns are the individual `ss` columns from each list element.
+Creating a reversal report involves comparing the values of adjacent
+cells *within rows*. A comparison process of this type is handled more
+readily when the data are in long, multi-level format. In long format,
+the comparison is between adjacent cells *within columns*, which permits
+row-wise application of `dplyr` functions. We transform the data object
+with `pivot_longer(-raw, names_to = "agestrat", values_to = "ss")`,
+which returns a long data object with three columns:
 
-At this stage, however, the `ss` columns lack informative names. We use `set_names()` to name the columns of the `reversal_report` data frame, supplying a vector of names that consists of a string (`raw`) and a character vector (`tab_names`). In so doing, we take advantage of the fact that the elements of `norms_list` were ordered by ascending age groups, in the same sequence as the labels in `tab_names`.
+-   `raw`: the existing raw column is *not* pivoted (as indicated by the
+    `-` operator), but is transformed into a Level 2 variable, meaning
+    other Level 1 variables are nested within it. When `-raw` is passed
+    as the first argument to `pivot_longer()`, it signifies that all
+    other columns besides `raw` will be pivoted to long format.
 
-Creating a reversal report involves comparing the values of adjacent cells *within rows*. A comparison process of this type is handled more readily when the data are in long, multi-level format. In long format, the comparison is between adjacent cells *within columns*, which permits row-wise application of `dplyr` functions. We transform the data object with `pivot_longer(-raw, names_to = "agestrat", values_to = "ss")`, which returns a long data object with three columns:
+-   `agestrat`: the `names_to =` argument designates this new column as
+    the recipient of the *names* of the pivoted columns from the wide
+    data object. In long format, `agestrat` is a Level 1 variable, such
+    that all of its values are nested within each value of `raw`.
 
--   `raw`: the existing raw column is *not* pivoted (as indicated by the `-` operator), but is transformed into a Level 2 variable, meaning other Level 1 variables are nested within it. When `-raw` is passed as the first argument to `pivot_longer()`, it signifies that all other columns besides `raw` will be pivoted to long format.
--   `agestrat`: the `names_to =` argument designates this new column as the recipient of the *names* of the pivoted columns from the wide data object. In long format, `agestrat` is a Level 1 variable, such that all of its values are nested within each value of `raw`.
--   `ss`: the `values_to =` argument designates this new column as the recipient of the *cell values* from the pivoted columns. `ss` is also a Level 1 variable, meaning that paired values of `agestrat` and `ss` are nested within each value of `raw`. Thus, in long format, each row contains a raw score and its corresponding standard score within a certain age group, as is evident in the following subset of rows from the current data object:
+-   `ss`: the `values_to =` argument designates this new column as the
+    recipient of the *cell values* from the pivoted columns. `ss` is
+    also a Level 1 variable, meaning that paired values of `agestrat`
+    and `ss` are nested within each value of `raw`. Thus, in long
+    format, each row contains a raw score and its corresponding standard
+    score within a certain age group, as is evident in the following
+    subset of rows from the current data object:
 
-      raw   agestrat      ss
-      1     13.0-13.11    54
-      1     14.0-14.11    51
-      1     15.0-16.11    48
-      1     17.0-18.11    45
-      2     6.0-6.3       96
-      2     6.4-6.7       92
-      2     6.8-6.11      88
+<!-- -->
 
-In this example, notice how each value of `raw` repeats over the changing pairs of `agestrat` and `ss`. Once the rows have cycled through all values of `agestrat` (that is, all age groups), the sequence starts over for the *next* value of raw.
+    raw   agestrat     ss 
+    1     13.0-13.11   54 
+    1     14.0-14.11   51 
+    1     15.0-16.11   48 
+    1     17.0-18.11   45 
+    2     6.0-6.3      96 
+    2     6.4-6.7      92 
+    2     6.8-6.11     88
+
+In this example, notice how each value of `raw` repeats over the
+changing pairs of `agestrat` and `ss`. Once the rows have cycled through
+all values of `agestrat` (that is, all age groups), the sequence starts
+over for the *next* value of raw.
 
 ```{r cNORM-demo, echo = 128:133, eval = F}
 ```
 
-With the data in this format, we can define "reversal" and identify those rows where it occurs. Recall that the fundamental cell-to-cell comparison for reversal was originally defined as between *horizontally* adjacent cells within the rows of the wide-format table. In the long-format object, those rows are now stacked on top of one another in columns, meaning that the *last* row of the set of rows for `raw = 1` is now *vertically* adjacent to the *first* row of the set of rows row for `raw = 2`, as can be seen in the subset of rows shown above. It is important that we exclude these "first-last" pairs from the reversal detection process, because the concept of a score reversal is only meaningful for adjacent age groups *within* a single raw score.
+With the data in this format, we can define "reversal" and identify
+those rows where it occurs. Recall that the fundamental cell-to-cell
+comparison for reversal was originally defined as between *horizontally*
+adjacent cells within the rows of the wide-format table. In the
+long-format object, those rows are now stacked on top of one another in
+columns, meaning that the *last* row of the set of rows for `raw = 1` is
+now *vertically* adjacent to the *first* row of the set of rows row for
+`raw = 2`, as can be seen in the subset of rows shown above. It is
+important that we exclude these "first-last" pairs from the reversal
+detection process, because the concept of a score reversal is only
+meaningful for adjacent age groups *within* a single raw score.
 
-We can accomplish this exclusion by calling `group_by(raw)`, which essential recreates the row structure of the wide object in the long object by marking the first and last rows of each raw score's group of rows. In subsequent functions, scanning for reversals will occur only *within* a raw score group, and not *between* adjacent raw score groups.
+We can accomplish this exclusion by calling `group_by(raw)`, which
+essential recreates the row structure of the wide object in the long
+object by marking the first and last rows of each raw score's group of
+rows. In subsequent functions, scanning for reversals will occur only
+*within* a raw score group, and not *between* adjacent raw score groups.
 
-We then use `mutate(case_when())` to create a new column `reversal`, which will be coded `1` for any row where a score reversal is detected. The detection of reversals is accomplished within the conditional coding structure of `case_when()`, by applying the predicate test `lag(ss) < ss`. This predicate returns `TRUE` when the value of `ss` is higher than the value of `ss` in the preceding (lag) row. This condition constitutes a score reversal because it is the opposite of what we expect when comparing the lookup outcome for a certain raw score to the lookup outcome for that same raw score in the next oldest age group. As the comparison group becomes more able (as the latent ability increases with increasing age), we expect the standard score corresponding to any given raw score to decrease. When that standard score instead increases from one age group to the next, it constitutes a score reversal.
+We then use `mutate(case_when())` to create a new column `reversal`,
+which will be coded `1` for any row where a score reversal is detected.
+The detection of reversals is accomplished within the conditional coding
+structure of `case_when()`, by applying the predicate test
+`lag(ss) < ss`. This predicate returns `TRUE` when the value of `ss` is
+higher than the value of `ss` in the preceding (lag) row. This condition
+constitutes a score reversal because it is the opposite of what we
+expect when comparing the lookup outcome for a certain raw score to the
+lookup outcome for that same raw score in the next oldest age group. As
+the comparison group becomes more able (as the latent ability increases
+with increasing age), we expect the standard score corresponding to any
+given raw score to decrease. When that standard score instead increases
+from one age group to the next, it constitutes a score reversal.
 
-To refine the output, we call `filter(reversal == 1)`, which drops all rows except those where a reversal occurs. We use `select()` to drop the `reversal` marker column, which is now superfluous, and `write_csv()` the output report. 
+To refine the output, we call `filter(reversal == 1)`, which drops all
+rows except those where a reversal occurs. We use `select()` to drop the
+`reversal` marker column, which is now superfluous, and `write_csv()`
+the output report.
 
 ```{r cNORM-demo, echo = 134:140, eval = F}
 ```
 
-The resulting `reversal_report` identifies reversal locations within the larger lookup table. Each row of the report points to a location in the larger table by providing the row (`raw`) and column (`agestrat`) of a cell in the larger table where a reversal occurs, as in the example below. This allows quick location of reversals, rather than having to search the entire table for a "needle-in-a-haystack"-type phenomenon. 
+The resulting `reversal_report` identifies reversal locations within the
+larger lookup table. Each row of the report points to a location in the
+larger table by providing the row (`raw`) and column (`agestrat`) of a
+cell in the larger table where a reversal occurs, as in the example
+below. This allows quick location of reversals, rather than having to
+search the entire table for a "needle-in-a-haystack"-type phenomenon.
 
-```
-raw	  agestrat
-1	  17.0-18.11
-5	  17.0-18.11
-9	  17.0-18.11
-14	  17.0-18.11
-```
+    raw   agestrat
+    1     17.0-18.11
+    5     17.0-18.11
+    9     17.0-18.11
+    14    17.0-18.11
 
-The next element of output is the raw-to-norm-score lookup tables in tabbed, .xlsx format, in which each worksheet (tab) contains the lookup table for a particular age group. To create this output, we use `write_xlsx()`. This function takes the named list `norms_list` and writes each table onto a separate .xlsx tab (within a single workbook), using the name of the list element for the tab name. The output file path for the resulting .xlsx workbook is specified using `here()` (to anchor the path to R project folder) and `str_c` (to concatenate quoted substrings and previously specified tokens into a single string that names the required file path).
+The next element of output is the raw-to-norm-score lookup tables in
+tabbed, .xlsx format, in which each worksheet (tab) contains the lookup
+table for a particular age group. To create this output, we use
+`write_xlsx()`. This function takes the named list `norms_list` and
+writes each table onto a separate .xlsx tab (within a single workbook),
+using the name of the list element for the tab name. The output file
+path for the resulting .xlsx workbook is specified using `here()` (to
+anchor the path to R project folder) and `str_c` (to concatenate quoted
+substrings and previously specified tokens into a single string that
+names the required file path).
 
 ```{r cNORM-demo, echo = 141:149, eval = F}
 ```
 
-Next we generate the output in a single-table format, with a single `raw` column in the far left position, and rightward columns giving the associated norm scores for each age group. As described previously, we use `reduce()` and `set_names()` to transform a list of data frames sharing an identical `raw` column into a single data frame (`table`), and then `write_csv()` that output.
+Next we generate the output in a single-table format, with a single
+`raw` column in the far left position, and rightward columns giving the
+associated norm scores for each age group. As described previously, we
+use `reduce()` and `set_names()` to transform a list of data frames
+sharing an identical `raw` column into a single data frame (`table`),
+and then `write_csv()` that output.
 
 ```{r cNORM-demo, echo = 150:159, eval = F}
 ```
 
-Finally, we use `capture.output()` to write out a .txt summary of the norming model parameters. These parameters are useful in checking and replicating the analysis. Three arguments are passed to `capture.output()`:
+Finally, we use `capture.output()` to write out a .txt summary of the
+norming model parameters. These parameters are useful in checking and
+replicating the analysis. Three arguments are passed to
+`capture.output()`:
 
--   `str_c(score_to_norm_stem, " model summary")` is a title line for the summary.
--   `summary(model)` captures the reported parameters of the cNORM `model` object.
+-   `str_c(score_to_norm_stem, " model summary")` is a title line for
+    the summary.
+-   `summary(model)` captures the reported parameters of the `cNORM`
+    `model` object.
 -   `file =` specifies the file path for the .txt output.
 
 ```{r cNORM-demo, echo = 160:166, eval = F}
 ```
 
-In the example below, `User specified solution: 4 terms` refers to the value of the `terms =` argument passed to `cnorm()`, as described previously. The summary shows that the model is, in fact, a regression equation with four predictors.
+In the example below, `User specified solution: 4 terms` refers to the
+value of the `terms =` argument passed to `cnorm()`, as described
+previously. The summary shows that the model is, in fact, a regression
+equation with four predictors.
 
     [1] "iws_sum model summary"
     User specified solution: 4 terms
@@ -434,9 +754,15 @@ In the example below, `User specified solution: 4 terms` refers to the value of 
 
 ### Appendix: Grade-Based Norms
 
-As noted above, an advantage of cNORM when creating age-based norms is its capacity to implement optimized age-stratification, based on the distribution of ages within a particular input data set. In contrast, grade-based norms require the use of predefined age groups (i.e., grade levels). Grade-based norms require certain modifications to the script for age-based norms. These modifications are described below.
+As noted above, an advantage of `cNORM` when creating age-based norms is
+its capacity to implement optimized age-stratification, based on the
+distribution of ages within a particular input data set. In contrast,
+grade-based norms require the use of predefined age groups (i.e., grade
+levels). To create grade-based norms, we modify the age-based script, as described below.
 
-Because age is not used in the grade-based modeling process, the following section of code from the age-based script can be dropped from the grade-based script:
+Because age is not used in the grade-based modeling process, the
+following section of code from the age-based script can be dropped from
+the grade-based script:
 
 ```{r cNORM-demo, echo = 26:34, eval = F}
 ```
@@ -454,7 +780,8 @@ The next section of code from the age-based script is:
         select(ID, age, group, raw)
     ) %>%
 
-In the grade-based script, this same section is modified, as in this example:
+In the grade-based script, this same section is modified, as in this
+example:
 
     map(
       scores,
@@ -468,63 +795,86 @@ In the grade-based script, this same section is modified, as in this example:
 
 Note the differences between the two examples:
 
--   `left_join()` is not needed in the grade-based script, because there is no need to bring in the continuous age variable.
+-   `left_join()` is not needed in the grade-based script, because there
+    is no need to bring in the continuous age variable.
 
--   the two `select()` lines, as well as the `rename()` line, differ because of the need to bring in the `GradeSemester` column, which holds the person-wise grade classifications.
+-   the two `select()` lines, as well as the `rename()` line, differ
+    because of the need to retain the `GradeSemester` column (from `input_original`), which
+    holds the person-wise grade classifications.
 
-`GradeSemester` (or its equivalent) is usually coded as an integer. For example, it could be coded `1:26` to represent 26 grade levels (e.g., K-fall, K-spring, 1-fall, 1-spring, . . . , 12-fall, 12-spring). This coding is suitable for cNORM modeling, because it represents the equal-interval stratification of the school year into semesters of equal length. One could also apply a linear transformation to the integer coding to obtain grade level expressed as weeks of schooling. The modeling process is unaffected by any linear transformation of the native grade-level coding.
+`GradeSemester` (or its equivalent) is usually coded as an integer. For
+example, it could be coded `1:26` to represent 26 grade levels (e.g.,
+K-fall, K-spring, 1-fall, 1-spring, . . . , 12-fall, 12-spring). This
+coding is suitable for `cNORM` modeling, because it represents the
+equal-interval stratification of the school year into semesters of equal
+length. We could also apply a linear transformation to the integer
+coding to obtain grade level expressed as weeks of schooling (for example). The
+modeling process is unaffected by any linear transformation of the
+native grade-level coding.
 
-The next difference between the age-based and grade-based scripts is in the specification of `rawTable()` for the generation of raw-to-norm-score lookup tables.
+The next difference between the age-based and grade-based scripts is in
+the specification of `rawTable()` for the generation of
+raw-to-norm-score lookup tables.
 
 Here is how `rawTable()` is specified in the age-based script:
 
-```
-norms_list <- rawTable(
-  c(
-    6.167,
-    6.5,
-    6.833,
-    7.167,
-    7.5,
-    7.833,
-    8.25,
-    8.75,
-    9.25,
-    9.75,
-    10.25,
-    10.75,
-    11.25,
-    11.75,
-    12.25,
-    12.75,
-    13.5,
-    14.5,
-    16,
-    18.0
-  ),
-  model,
-  step = 1,
-  minNorm = 40,
-  maxNorm = 130,
-  minRaw = 1,
-  maxRaw = score_to_norm_max_raw,
-  pretty = FALSE
-) %>%
-```
+    norms_list <- rawTable(
+      c(
+        6.167,
+        6.5,
+        6.833,
+        7.167,
+        7.5,
+        7.833,
+        8.25,
+        8.75,
+        9.25,
+        9.75,
+        10.25,
+        10.75,
+        11.25,
+        11.75,
+        12.25,
+        12.75,
+        13.5,
+        14.5,
+        16,
+        18.0
+      ),
+      model,
+      step = 1,
+      minNorm = 40,
+      maxNorm = 130,
+      minRaw = 1,
+      maxRaw = score_to_norm_max_raw,
+      pretty = FALSE
+    ) %>%
+
 By contrast, here is the same section in the grade-based script:
-```
-norms_list <- rawTable(
-  1:26,
-  model, 
-  step = 1, 
-  minNorm = 40, 
-  maxNorm = 130, 
-  minRaw = 1, 
-  maxRaw = score_to_norm_max_raw,
-  pretty = FALSE
-  ) %>% 
-```
-The difference, of course, is in the first argument. In the age-based script, we pass a numerical vector holding the mid-point (expressed in a decimal age metric) of each of the desired age groups. In the grade-based script, we pass `1:26`, the integer vector expressing the equal-interval coding of the grade levels.
 
-To focus a bit further on why grade levels are plausibly represented by an integer vector, consider that in most normative studies, children are tested on various dates throughout each semester (as opposed to, say, a single scheduled testing date for all participants). If we assume that actual testing dates within a semester vary randomly, we can also plausibly assume that each element of the integer vector represents the midpoint of the corresponding semester. This mirrors the approach for age-based lookup tables, where we specify the midpoint of each desired age group.
+    norms_list <- rawTable(
+      1:26,
+      model, 
+      step = 1, 
+      minNorm = 40, 
+      maxNorm = 130, 
+      minRaw = 1, 
+      maxRaw = score_to_norm_max_raw,
+      pretty = FALSE
+      ) %>% 
 
+The difference, of course, is in the first argument. In the age-based
+script, we pass a numerical vector holding the mid-point (expressed in a
+decimal age metric) of each of the desired age groups. In the
+grade-based script, we pass `1:26`, the integer vector expressing the
+equal-interval coding of the grade levels.
+
+To focus a bit further on why grade levels are plausibly represented by
+an integer vector, consider that in most normative studies, children are
+tested on various dates throughout each semester (as opposed to, say, a
+single scheduled testing date for all participants). If we assume that
+actual testing dates within a semester vary randomly, we can also
+plausibly assume that each element of the integer vector represents the
+midpoint of the corresponding semester. This mirrors the approach for
+age-based lookup tables, where we specify the midpoint of each desired
+age group.
