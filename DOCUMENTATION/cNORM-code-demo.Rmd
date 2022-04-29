@@ -10,27 +10,36 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-### Generating raw-to-norm-score lookup tables with cNORM
+### Generating raw-to-norm-score lookup tables with `cNORM`
 
 #### Overview
 
 This demonstration uses the `cNORM` package to fit a norming model to a
 set of raw scores, and to generate raw-to-norm-score[^1] lookup tables
-based on the model. The demonstration data is from the Tests of Dyslexia
-(TOD) project (2021). The input file contains data from the
-TOD-Comprehensive (TOD-C) standardization study, with 1407 cases ranging
-in age from 6 to 19. The input file includes demographic information and
-raw scores from three TOD subtests: Irregular Word Spelling (`iws`),
-Blending (`bln`), and Segmenting (`seg`).
+based on the model. `cNORM` employs a regression-based modeling process,
+which uses the variance of the entire normative sample to correct for
+age-specific distributional anomalies and sampling error. For more
+technical background on `cNORM`, please see Appendix A.
 
 [^1]: We use "norm scores" as a general term that encompasses specific
     types of norm scores, such as T scores or IQ-type standard scores.
 
+The demonstration data is from the Tests of Dyslexia (TOD) project
+(2021). The input file contains data from the TOD-Comprehensive (TOD-C)
+standardization study, with 1407 cases ranging in age from 6 to 19. The
+file contains raw scores from three TOD subtests (Irregular Word
+Spelling (`iws`), Blending (`bln`), and Segmenting (`seg`), as well as
+date of birth (`DOB`), date of testing (`admin_date`), grade level
+(`GradeSemester`), and other demographic variables.
+
 The script proceeds through data preparation, modeling, and output
-stages. The output includes raw-to-norm-score lookup tables, in both
+stages. The output comprises raw-to-norm-score lookup tables, in both
 single-table and tabbed format; a reversal report that flags anomalous
 age-related changes in norm scores; and a model summary that facilitates
 replication of the analysis.
+
+This demonstration produces age-based norms. Grade-based norms require
+slight modifications to the script, as detailed in Appendix B.
 
 To run this demonstration, set up an RStudio project called `cNORM`,
 with subfolders `CODE`, `INPUT-FILES` and `OUTPUT-FILES`. Save scripts
@@ -214,9 +223,9 @@ capture.output(
 Load packages for norming (`cNORM`), data wrangling (`tidyverse`), file
 path specification (`here`), writing .xlsx output (`writexl`), and
 working with data/time data (`lubridate`). Specifiy file path tokens.
-`read_csv()` the input data set into `input_original`, using the `url()`
-function to retrieve data from a remote website. Use `str_c()` to
-concatenate the file path tokens into a single file path.
+`read_csv()` the input data set into `input_original`, using `url()` to
+retrieve data from a remote website. Use `str_c()` to concatenate the
+file path tokens into a single file path.
 
 ```{r cNORM-demo, echo = 1:14, eval = F}
 ```
@@ -242,25 +251,26 @@ value of `max_raw` into the vector `score_to_norm_max_raw`.
 ```{r cNORM-demo, echo = 16:24, eval = F}
 ```
 
-A useful feature of `cNORM` is its capacity to implement optimized
-age-stratification, constructing age groups that are best suited to the
+A useful feature of `cNORM` is its capacity to implement optimized age
+stratification, constructing age groups that are best suited to the
 modeling of age-related score changes, based on the characteristics of a
 particular input data set. Often, *a priori* age groups, which serve the
-needs of the users of published norms, do not stratify the input sample
+needs of the users of published norms, do not parition the input sample
 in the way that best supports the `cNORM` modeling functions. After
-`cNORM` generates a norming model base on optimized age-stratification,
+`cNORM` generates a norming model based on optimized age-stratification,
 the operator can specify a different age-stratification scheme for the
 raw-to-norm-score lookup tables. Thus it is possible to recreate the *a
-priori* age groups in the final output of `cNORM`, in order to support
-clinical application of the published norms tables.
+priori* age groups in the final output of `cNORM`, to support clinical
+application of the published norms tables.
 
 We invoke `cNORM`'s age-stratification function by calling
-`cNORM::getGroups()`, which creates a new data frame `age_contin` to
-hold a continuous age variable (in decimal format) for each case in the
-input file. We use `mutate(across())` and `lubridate::mdy()` to coerce
-the date variables (`DOB`, `admin_date`), which are strings in the input
-file, into a numeric date-time format. Within `mdy()`, the `.x` token
-represents the variables designated for transformation by `across()`.
+`cNORM::getGroups()`, which creates a new data frame (which we name
+`age_contin`) to hold a continuous age variable (in decimal format) for
+each case in the input file. We use `mutate(across())` and
+`lubridate::mdy()` to coerce the date variables (`DOB`, `admin_date`),
+which are strings in the input file, into a numeric date-time format.
+Within `mdy()`, the `.x` token represents the variables designated for
+transformation by `across()`.
 
 Within the same call of `mutate()`, we calculate a new decimal-format
 `age` variable. The `%--%` operator of `lubridate` creates an arithmetic
@@ -307,11 +317,11 @@ the `age_contin` data frame by renaming `...14` to the more meaningful
 ```
 
 The `cNORM` modeling functions operate on one raw score at a time. For
-tests with multiple subtest scores, therefore, we can run this script
-repeatedly, processing one score at a time. The next code block
-partitions the example data file, which contains three subtest raw
-scores for each case, into separate data frames for each score. These
-data frames contain only the variables needed by `cNORM`.
+tests with multiple subtest scores, therefore, we can run this entire
+script repeatedly, processing one score at a time. The next code block
+partitions the input data file, which contains three subtest raw scores
+for each case, into separate data frames for each score. These data
+frames contain only the variables needed by `cNORM`.
 
 The code includes two iterative segments. In the first, `map()` is used
 to apply a series of functions to each element of the `scores` vector,
@@ -328,11 +338,11 @@ function is used elsewhere in this pipeline.
 
 `drop_na()` deletes rows (cases) that are missing the subtest score
 currently being normed. `left_join()` joins the columns of the current
-object with those of the previously created `age_contin`, matching cases
-`by = "ID"`. To obtain the column configuration required by `cNORM`,
-`rename()` changes the subtest score name to the generic `raw`, and
-`select(ID, age, group, raw)` subsets the columns in the preferred
-left-right sequence.
+object with those of the previously created `age_contin` data frame,
+matching cases `by = "ID"`. To obtain the column configuration required
+by `cNORM`, `rename()` changes the subtest score name to the generic
+`raw`, and `select(ID, age, group, raw)` subsets the columns in the
+preferred left-right sequence.
 
 At this point, `map()` finishes iterating and returns a list of unnamed
 data frames, one for each subtest score, containing the variables
@@ -372,7 +382,7 @@ age-related development of a latent ability is modeled using raw scores
 from a normative sample. This model of development is eventually
 operationalized as a set of raw-to-norm score lookup tables.
 
-As noted previously, `cNORM` operates on one raw score at a time. Here,
+As noted previously, `cNORM` processes one raw score at a time. Here,
 `read_csv()` is used to read in one of the single-score data frames
 written out by upstream code. The resulting object is named `input`. The
 file path is concatenated from previously initialized tokens. In the
@@ -385,10 +395,11 @@ present example, `iws_sum` is the raw score to be normed.
 -   `group`: designates the age group column in the input data file
     (here `input$group`).
 -   `k`: a power constant that sets the limit on the expansion of the
-    Taylor polynomial series, which controls the precision of estimation
-    of the normative curve. The default value is 4, and values of 3 and
-    5 can used in searching for an acceptable model. `k = 5` is
-    computationally intensive and entails processing times of several minutes or more on many CPUs.
+    Taylor polynomial series[^2], which controls the precision of
+    estimation of the normative model. The default value is 4, and
+    values of 3 and 5 can used in searching for an acceptable model.
+    `k = 5` is computationally intensive and entails processing times of
+    several minutes or more on many CPUs.
 -   `terms`: sets the number of terms in the regression equation that
     expresses the normative model. `cnorm()` finds the best-fitting
     model with this number of terms. By convention, we use a starting
@@ -398,6 +409,9 @@ present example, `iws_sum` is the raw score to be normed.
     mean and standard deviation of the preferred metric (e.g.,
     `c(10, 3)`).
 
+[^2]: See Appendix A for more detail on the underlying mathematics of
+    `cNORM.`
+
 ```{r cNORM-demo, echo = 54:64, eval = F}
 ```
 
@@ -406,20 +420,28 @@ console, and a plot of the observed and predicted percentile curves
 associated with the norming model. The plot shown below is for the `iws`
 raw score in the input sample.
 
-At this point, the norming process and workflow extends outside the mere sequential execution of this script. The initial model is evaluated, using diagnostic tools available within `cNORM`. If this initial model is judged acceptable, the output phase of the norms process can proceed. However, if the initial model is problematic, we re-run the `cnorm()` function with different values of `k` and `terms`, and examine these subsequent models with the diagnostic aids, repeating the process until we settle on a model that is acceptable (or, at least, the model with the fewest observable flaws).
+At this point, the norming workflow extends outside the mere
+sequential execution of this script. The initial model is evaluated,
+using diagnostic tools available within `cNORM`. If this initial model
+is judged acceptable, the output phase of the norms process can proceed.
+However, if the initial model is problematic, we re-run the `cnorm()`
+function with different values of `k` and `terms`, and examine these
+subsequent models with the diagnostic aids, repeating the process until
+we settle on a model that is acceptable (or, at least, the model with
+the fewest observable flaws).
 
-*Monotonicity* is the primary criterion by which we evaluate the norming
+*Monotonicity* is the primary criterion for evaluating the normative
 model. When we test a developing cognitive ability, we expect raw scores
 to increase monotonically (that is, increase without ever decreasing)
-with increasing age. It follows that a specific raw score is expected to
+with increasing age. Consequently, we expect that a specific raw score will be
 be associated with progressively lower norm scores as age increases.
 This occurs because the mean raw score increases from one age group to
-the next, and, consequently, an identical raw score moves to a lower
+the next, and, as a result, an identical raw score moves to a lower
 rank in the next oldest age group, and so on.
 
 The best way to check monotonicity after running `cnorm()` is to examine
 the plot of percentile curves associated with the model. In this plot,
-the x-axis variable is age group, and the y-axis variable is raw score.
+the *x*-axis variable is age group, and the *y*-axis variable is raw score.
 The plot illustrates seven percentile ranks: 2.5, 10, 25, 50, 75, 90,
 97.5. The colored circles represent the actual raw scores associated
 with these percentiles, per age group, in the input data. The solid
@@ -428,11 +450,10 @@ selected regression equation is used to smooth the age-related
 progression of each percentile rank.
 
 If those curves *do not* intersect (as in the example below), the model
-exhibits adequate monotonicity, and we can proceed to generating the
-norming output. When the plot shows intersecting percentile curves, it
+exhibits adequate monotonicity, and we can proceed to the output phase. If, on the other hand, the percentile curves *do* intersect, it
 indicates an unexpected change in the raw to norm-score relationship
 from one age group to the next (i.e., an absence of monotonicity). For
-example, it may reveal that certain raw scores are associated with
+example, the plot may reveal that certain raw scores are associated with
 *higher* norm scores in the next oldest age group. This
 counter-intuitive outcome is referred to as a norm-score *reversal*.
 
@@ -446,20 +467,22 @@ evaluating the adequacy of the model.
 
 When the plot shows intersecting percentile curves, we re-run the
 `cnorm()` modeling function with different parameters (i.e., different
-values of `k` and `terms`), in order to find a model that yields non-intersecting curves (if such a model exists). To examine alternative models, we use
-another diagnostic tool: `plot(model, "series", end = 8)`. This call of
-`plot()` returns a series of percentile graphs for `terms = 1` through
-`terms = 8`. Often, varying the number of regression terms will result
-in a plot with non-intersecting curves.
+values of `k` and `terms`), in order to find a model that yields
+non-intersecting curves (if such a model exists). To examine alternative
+models, we use another diagnostic tool:
+`plot(model, "series", end = 8)`. This call of `plot()` returns a series
+of percentile graphs for `terms = 1` through `terms = 8`. Often, varying
+the number of regression terms will result in a plot with
+non-intersecting curves.
 
 In general, parsimony applies: it's best to select a model with fewer
 terms, all else being equal. Increasing the number of terms increases
-the risk of *overfitting* the model (that is, modeling error in
-addition to the developmental gradient of the latent ability). In the
-percentile plot, an overfitted model is visualized in curves that twist
-and turn sharply around the raw score data points (colored circles). In
-contrast, a properly fitted model will yield smoothly increasing
-parallel colored lines.
+the risk of *overfitting* the model (that is, modeling error in addition
+to the developmental gradient of the latent ability). In the percentile
+plot, an overfitted model is visualized in curves that twist and turn
+sharply around the raw score data points (colored circles). In contrast,
+a properly fitted model will yield smoothly increasing parallel colored
+lines.
 
 Another diagnostic aid is `checkConsistency(model)`, which offers a
 programmatic check on monotonicity. When `checkConsistency()` returns
@@ -473,8 +496,9 @@ based on a problematic model, to see where score reversals occur.
 A final note about model specification is that with some data sets, it
 may not be possible to find a norming model that is completely free of
 violations of monotonicity. Finalizing the norms then becomes a process
-of selecting the least-flawed model, and then
-manually correcting score reversals and other anomalies in the resulting raw-to-norm-score lookup tables.
+of selecting the least-flawed model, and then manually correcting score
+reversals and other anomalies in the resulting raw-to-norm-score lookup
+tables.
 
 ```{r cNORM-demo, echo = 66:67, eval = F}
 ```
@@ -740,7 +764,7 @@ replicating the analysis. Three arguments are passed to
 ```{r cNORM-demo, echo = 160:166, eval = F}
 ```
 
-In the example below, `User specified solution: 4 terms` refers to the
+An example of a model summary appears below.  `User specified solution: 4 terms` refers to the
 value of the `terms =` argument passed to `cnorm()`, as described
 previously. The summary shows that the model is, in fact, a regression
 equation with four predictors.
@@ -752,15 +776,94 @@ equation with four predictors.
     Regression function: raw ~ -14.63471243 + (-1.240429481*A1) + (0.0001098877445*L2A2) + (-7.772590394e-08*L3A3) + (1.593753192e-11*L4A4)
     Raw Score RMSE = 1.84052
 
-### Appendix: Grade-Based Norms
+### Appendix A: `cNORM` Technical Background
 
-As noted above, an advantage of `cNORM` when creating age-based norms is
-its capacity to implement optimized age-stratification, based on the
-distribution of ages within a particular input data set. In contrast,
-grade-based norms require the use of predefined age groups (i.e., grade
-levels). To create grade-based norms, we modify the age-based script, as described below.
+`cNORM` (Lenhard et al., 2018) is a package for the R statistical
+platform that has two primary features:
 
-Because age is not used in the grade-based modeling process, the
+1.  It is a *continuous,* regression-based modeling process, which uses
+    the variance of the entire normative sample to correct for
+    age-specific distributional anomalies and sampling error.
+2.  It is a *distribution-free* method, meaning that the modeling
+    process does not directly model age-group distribution parameters
+    (e.g., mean, variance) and makes no assumptions about these
+    parameters. As a result, `cNORM` can generate useful normative models,
+    even when processing non-normally distributed input samples.
+
+`cNORM` operates by modeling the *raw score* (*r*) as a function of
+person *location* (*l*, expressed as a percentile rank or other
+normative score) and the explanatory variable of age (a, expressed as a
+continuous age variable, or a discrete variable such as age-group
+membership or grade level). Age is "explanatory" in the sense that the
+latent ability for which *r* is an indicator increases with age, and
+that increase is presumably caused by the developmental changes that
+accompany the passage of time and increasing age. The functional
+relationship among these variables can be expressed as:
+
+$$
+E(r) = f(l, a)
+$$
+
+To create the raw-to-standard-score mapping required for clinical
+application of test scores, this functional relationship must be
+operationalized as a multiple regression equation. To determine the
+optimal regression equation, `cNORM` employs the mathematical methods of
+the Taylor series. Strictly speaking, the Taylor series is an infinite
+polynomial expansion, but for practical purposes, much of the variance
+in the functional relationship can be estimated with a finite expansion
+by reducing the polynomial to the degree *k*, which is 4 by default. The
+Taylor series is thus simplified to a Taylor polynomial and consequently
+reduced to a model selection question for the following regression
+function:
+
+\$\$r =\\sum\_{i,j=0}\^{k} c\_{i,j}l\^ia\^j\$\$
+
+The predictors in the regression function include all powers of age and
+location, and their linear combinations up to power *k*. `cNORM` selects
+the most relevant predictors and estimates all constants *c* to
+approximate *r* with the desired precision and as few predictors as
+possible. Usually, regression functions with five terms or less suffice
+to explain a large proportion of the variance in the normative sample
+(i.e., *R^2^* $\ge$ .95).
+
+The analysis proceeds in steps: 
+
+1.  The normative sample is partitioned into roughly equal-sized age
+    groups (or, alternatively, is grouped by grade levels).
+
+2.  Within these age groups, each person is assigned a percentile rank
+    as their value for *l*.
+
+3.  Powers of *a* and *l* are computed, up to the value of k (e.g.,
+    *a*^2^, *a*^3^, . . . . , *a*^k^). Products of these powers are
+    computed (e.g., *a*^2^*l*^2^, *a*^2^*l*^3^, . . . , *a*^k^*l*^k^).
+
+4.  The powers and products are entered as predictors in a best-subset
+    regression analysis, with *r* as the outcome variable.
+
+5.  The expansion of the Taylor function is determined by estimating
+    regression coefficients of the most relevant predictors from the
+    regression analysis. The most parsimonious regression function,
+    meeting predefined fit criteria, is selected.
+
+6.  The regression equation resulting from the previous step is used to
+    determine the normative score (e.g., IQ-type standard score)
+    associated with each possible raw score on the test, either by
+    directly computing the raw scores associated with a normative score
+    at a specific age, or by determining the zero-crossings of the
+    inverse function of the regression model to retrieve the normative
+    score corresponding to a specific raw score.
+
+### Appendix B: Grade-Based Norms
+
+As noted previously, an advantage of `cNORM` when creating age-based
+norms is its capacity to implement optimized age-stratification, based
+on the distribution of ages within a particular input data set. In
+contrast, grade-based norms require the use of predefined age groups
+(i.e., grade levels). To create grade-based norms, we modify the
+age-based script, as described below.
+
+Because age-specific variables are not used in the grade-based modeling process, the
 following section of code from the age-based script can be dropped from
 the grade-based script:
 
@@ -795,12 +898,13 @@ example:
 
 Note the differences between the two examples:
 
--   `left_join()` is not needed in the grade-based script, because there
+-   `left_join()` is dropped from the grade-based script, because there
     is no need to bring in the continuous age variable.
 
 -   the two `select()` lines, as well as the `rename()` line, differ
-    because of the need to retain the `GradeSemester` column (from `input_original`), which
-    holds the person-wise grade classifications.
+    because of the need to retain the `GradeSemester` column (from
+    `input_original`), which holds the person-wise grade
+    classifications.
 
 `GradeSemester` (or its equivalent) is usually coded as an integer. For
 example, it could be coded `1:26` to represent 26 grade levels (e.g.,
@@ -808,9 +912,9 @@ K-fall, K-spring, 1-fall, 1-spring, . . . , 12-fall, 12-spring). This
 coding is suitable for `cNORM` modeling, because it represents the
 equal-interval stratification of the school year into semesters of equal
 length. We could also apply a linear transformation to the integer
-coding to obtain grade level expressed as weeks of schooling (for example). The
-modeling process is unaffected by any linear transformation of the
-native grade-level coding.
+coding to obtain grade level expressed as weeks of schooling (for
+example). The modeling process is unaffected by any linear
+transformation of the native grade-level coding.
 
 The next difference between the age-based and grade-based scripts is in
 the specification of `rawTable()` for the generation of
@@ -878,3 +982,11 @@ plausibly assume that each element of the integer vector represents the
 midpoint of the corresponding semester. This mirrors the approach for
 age-based lookup tables, where we specify the midpoint of each desired
 age group.
+
+### References
+
+Lenhard, W., Lenhard, A., & Gary, S. (2018). *cNORM: Continuous
+Norming*. Vienna: The Comprehensive R Network.
+<https://cran.r-project.org/web/packages/cNORM/>
+
+
