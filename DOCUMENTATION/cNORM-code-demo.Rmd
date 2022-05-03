@@ -420,10 +420,10 @@ console, and a plot of the observed and predicted percentile curves
 associated with the norming model. The plot shown below is for the `iws`
 raw score in the input sample.
 
-At this point, the norming workflow extends outside the mere
-sequential execution of this script. The initial model is evaluated,
-using diagnostic tools available within `cNORM`. If this initial model
-is judged acceptable, the output phase of the norms process can proceed.
+At this point, the norming workflow extends outside the mere sequential
+execution of this script. The initial model is evaluated, using
+diagnostic tools available within `cNORM`. If this initial model is
+judged acceptable, the output phase of the norms process can proceed.
 However, if the initial model is problematic, we re-run the `cnorm()`
 function with different values of `k` and `terms`, and examine these
 subsequent models with the diagnostic aids, repeating the process until
@@ -433,24 +433,25 @@ the fewest observable flaws).
 *Monotonicity* is the primary criterion for evaluating the normative
 model. When we test a developing cognitive ability, we expect raw scores
 to increase monotonically (that is, increase without ever decreasing)
-with increasing age. Consequently, we expect that a specific raw score will be
-be associated with progressively lower norm scores as age increases.
-This occurs because the mean raw score increases from one age group to
-the next, and, as a result, an identical raw score moves to a lower
-rank in the next oldest age group, and so on.
+with increasing age. Consequently, we expect that a specific raw score
+will be associated with progressively lower norm scores as age
+increases. This occurs because the mean raw score increases from one age
+group to the next, and, as a result, an identical raw score moves to a
+lower rank in the next oldest age group, and so on.
 
 The best way to check monotonicity after running `cnorm()` is to examine
 the plot of percentile curves associated with the model. In this plot,
-the *x*-axis variable is age group, and the *y*-axis variable is raw score.
-The plot illustrates seven percentile ranks: 2.5, 10, 25, 50, 75, 90,
-97.5. The colored circles represent the actual raw scores associated
+the *x*-axis variable is age group, and the *y*-axis variable is raw
+score. The plot illustrates seven percentile ranks: 2.5, 10, 25, 50, 75,
+90, 97.5. The colored circles represent the actual raw scores associated
 with these percentiles, per age group, in the input data. The solid
 lines represent the outcome of the modeling process, whereby the
 selected regression equation is used to smooth the age-related
 progression of each percentile rank.
 
 If those curves *do not* intersect (as in the example below), the model
-exhibits adequate monotonicity, and we can proceed to the output phase. If, on the other hand, the percentile curves *do* intersect, it
+exhibits adequate monotonicity, and we can proceed to the output phase.
+If, on the other hand, the percentile curves *do* intersect, it
 indicates an unexpected change in the raw to norm-score relationship
 from one age group to the next (i.e., an absence of monotonicity). For
 example, the plot may reveal that certain raw scores are associated with
@@ -764,10 +765,10 @@ replicating the analysis. Three arguments are passed to
 ```{r cNORM-demo, echo = 160:166, eval = F}
 ```
 
-An example of a model summary appears below.  `User specified solution: 4 terms` refers to the
-value of the `terms =` argument passed to `cnorm()`, as described
-previously. The summary shows that the model is, in fact, a regression
-equation with four predictors.
+An example of a model summary appears below.
+`User specified solution: 4 terms` refers to the value of the `terms =`
+argument passed to `cnorm()`, as described previously. The summary shows
+that the model is, in fact, a regression equation with four predictors.
 
     [1] "iws_sum model summary"
     User specified solution: 4 terms
@@ -787,8 +788,8 @@ platform that has two primary features:
 2.  It is a *distribution-free* method, meaning that the modeling
     process does not directly model age-group distribution parameters
     (e.g., mean, variance) and makes no assumptions about these
-    parameters. As a result, `cNORM` can generate useful normative models,
-    even when processing non-normally distributed input samples.
+    parameters. As a result, `cNORM` can generate useful normative
+    models, even when processing non-normally distributed input samples.
 
 `cNORM` operates by modeling the *raw score* (*r*) as a function of
 person *location* (*l*, expressed as a percentile rank or other
@@ -854,6 +855,9 @@ The analysis proceeds in steps: 
     inverse function of the regression model to retrieve the normative
     score corresponding to a specific raw score.
 
+For further background on `cNORM` and its mathematical underpinnings,
+refer to the citations on the reference list.
+
 ### Appendix B: Grade-Based Norms
 
 As noted previously, an advantage of `cNORM` when creating age-based
@@ -863,9 +867,9 @@ contrast, grade-based norms require the use of predefined age groups
 (i.e., grade levels). To create grade-based norms, we modify the
 age-based script, as described below.
 
-Because age-specific variables are not used in the grade-based modeling process, the
-following section of code from the age-based script can be dropped from
-the grade-based script:
+Because age-specific variables are not used in the grade-based modeling
+process, the following section of code from the age-based script can be
+dropped from the grade-based script:
 
 ```{r cNORM-demo, echo = 26:34, eval = F}
 ```
@@ -985,8 +989,14 @@ age group.
 
 ### References
 
+Gary, S., Lenhard, W., & Lenhard, A. (2021). Modelling Norm Scores with
+the cNORM Package in R. *Psych, 3,* 501-521.
+<https://doi.org/10.3390/psycho3030033>
+
+Lenhard, A., Lenhard, W., Suggate, S., & Segerer, R. (2018). A
+Continuous Solution to the Norming Problem. *Assessment, 25(1),*
+112-125.
+
 Lenhard, W., Lenhard, A., & Gary, S. (2018). *cNORM: Continuous
 Norming*. Vienna: The Comprehensive R Network.
 <https://cran.r-project.org/web/packages/cNORM/>
-
-
