@@ -43,8 +43,8 @@ weights.ppvt <- computeWeights(data = norm.data, population.margins = marginals.
 # Let's check, which weights resulted (just for demo; not necessary)
 library(dplyr)
 norm.data$weights <- weights.ppvt
-norm.data.splitted <- norm.data %>% group_by(sex, migration) %>% summarize_at(vars(weights),.funs = "unique")
-View(norm.data.splitted)
+norm.data.split <- norm.data %>% group_by(sex, migration) %>% summarize(weights = unique(weights))
+View(norm.data.split)
 
 
 # Step 2: ranking and modeling is done in a single step ------------------------
