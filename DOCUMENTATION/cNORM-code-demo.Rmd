@@ -394,10 +394,10 @@ present example, `iws_sum` is the raw score to be normed.
     `input$raw`).
 -   `group`: designates the age group column in the input data file
     (here `input$group`).
--   `k`: a power constant that sets the limit on the expansion of the
-    Taylor polynomial series[^2], which controls the precision of
+-   `k`: a power constant that sets the general limit on the expansion
+    of the Taylor polynomial series[^2], which controls the precision of
     estimation of the normative model. The default value is 4, and
-    values of 3 and 5 can used in searching for an acceptable model.
+    values of 3 and 5 can be used in searching for an acceptable model.
     `k = 5` is computationally intensive and entails processing times of
     several minutes or more on many CPUs.
 -   `terms`: sets the number of terms in the regression equation that
@@ -458,11 +458,14 @@ example, the plot may reveal that certain raw scores are associated with
 *higher* norm scores in the next oldest age group. This
 counter-intuitive outcome is referred to as a norm-score *reversal*.
 
-The plot also show the proportion of variance in raw scores that is
+The plot also shows the proportion of variance in raw scores that is
 explained by the regression model (here, R^2^ = 0.9677). This value is
-often quite large, even in models that lack monotonicity. For our
-purposes, R^2^ is less important than monotonicity in terms of
-evaluating the adequacy of the model.
+often quite large, even in models that lack monotonicity, because
+violations of monotonicity almost always occur in the tails of the
+modeled score distribution, and thus have relatively little influence on
+R^2^, which expresses the total amount of variance explained by the
+model. For our purposes, R^2^ is less important than monotonicity in
+terms of evaluating the adequacy of the model.
 
 ![](/Users/dherzberg/OneDrive%20-%20Western%20Psychological%20Services/Desktop/R/cNORM/DOCUMENTATION/cNORM-code-demo-plot.png)
 
