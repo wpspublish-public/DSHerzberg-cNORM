@@ -108,7 +108,6 @@ input <- suppressMessages(read_csv(here(
 model <- cnorm(
   raw = input$raw,
   group = input$group,
-  k = 4,
   terms = 4,
   scale = "IQ"
 )
@@ -379,8 +378,11 @@ the current data object in the pipeline.
 
 The next code block executes the `cNORM` modeling process, in which
 age-related development of a latent ability is modeled using raw scores
-from a normative sample. This model of development is eventually
+from a normative sample[^2]. This model of development is eventually
 operationalized as a set of raw-to-norm score lookup tables.
+
+[^2]: See Appendix A for more detail on the underlying mathematics of
+    `cNORM.`
 
 As noted previously, `cNORM` processes one raw score at a time. Here,
 `read_csv()` is used to read in one of the single-score data frames
@@ -388,18 +390,33 @@ written out by upstream code. The resulting object is named `input`. The
 file path is concatenated from previously initialized tokens. In the
 present example, `iws_sum` is the raw score to be normed.
 
-`cnorm()` is the modeling function, and its arguments are as follows:
+`cnorm()` is the modeling function, and its arguments[^3] are as
+follows:
+
+[^3]: Two important arguments (`k`, `t`) are omitted from this call of
+    `cnorm()` , and deserve further discussion. `k` is a power constant
+    that sets the general limit on the expansion of the Taylor
+    polynomial series, which controls the precision of estimation of the
+    normative model. `t` is the age power parameter, which controls the
+    degree of the polynomial used to model the relationship between age
+    and raw score.
+
+    When these two arguments are left unspecified in the call of
+    `cnorm()` (i.e., their values are `NULL`), the default values of `k`
+    = 5 and `t` = 3 are used. These values optimize the function of
+    `cnorm()`, such that precise modeling can be obtained, without a
+    heavy CPU load. `t` = 3 presents a reasonable processing demand, and
+    allows the age trajectory to be modeled with a cubic polynomial,
+    which usually provides acceptable fit to the data.
+
+    Increasing `t` to allow age-raw score modeling with higher-order
+    polynomials typically increases processing load without offering any
+    useful increase in model precision.
 
 -   `raw`: designates the raw score column in the input data file (here
     `input$raw`).
 -   `group`: designates the age group column in the input data file
     (here `input$group`).
--   `k`: a power constant that sets the general limit on the expansion
-    of the Taylor polynomial series[^2], which controls the precision of
-    estimation of the normative model. The default value is 4, and
-    values of 3 and 5 can be used in searching for an acceptable model.
-    `k = 5` is computationally intensive and entails processing times of
-    several minutes or more on many CPUs.
 -   `terms`: sets the number of terms in the regression equation that
     expresses the normative model. `cnorm()` finds the best-fitting
     model with this number of terms. By convention, we use a starting
@@ -408,9 +425,6 @@ present example, `iws_sum` is the raw score to be normed.
     `"IQ"`,`"T"`,`"z"`, `"percentile"`, or a vector that provides the
     mean and standard deviation of the preferred metric (e.g.,
     `c(10, 3)`).
-
-[^2]: See Appendix A for more detail on the underlying mathematics of
-    `cNORM.`
 
 ```{r cNORM-demo, echo = 54:64, eval = F}
 ```
@@ -425,19 +439,19 @@ execution of this script. The initial model is evaluated, using
 diagnostic tools available within `cNORM`. If this initial model is
 judged acceptable, the output phase of the norms process can proceed.
 However, if the initial model is problematic, we re-run the `cnorm()`
-function with different values of `k` and `terms`, and examine these
-subsequent models with the diagnostic aids, repeating the process until
-we settle on a model that is acceptable (or, at least, the model with
-the fewest observable flaws).
+function with different values of `terms`, and examine these subsequent
+models with the diagnostic aids, repeating the process until we settle
+on a model that is acceptable (or, at least, the model with the fewest
+observable flaws).
 
 *Monotonicity* is the primary criterion for evaluating the normative
-model. When we test a developing cognitive ability, we expect raw scores
-to increase monotonically (that is, increase without ever decreasing)
-with increasing age. Consequently, we expect that a specific raw score
-will be associated with progressively lower norm scores as age
-increases. This occurs because the mean raw score increases from one age
-group to the next, and, as a result, an identical raw score moves to a
-lower rank in the next oldest age group, and so on.
+model. When we test a developing cognitive ability, the expectation is
+that raw scores will increase monotonically (that is, increase without
+ever decreasing) with increasing age. Consequently, we expect that a
+specific raw score will be associated with progressively lower norm
+scores as age increases. This occurs because the mean raw score
+increases from one age group to the next, and, as a result, an identical
+raw score moves to a lower rank in the next oldest age group, and so on.
 
 The best way to check monotonicity after running `cnorm()` is to examine
 the plot of percentile curves associated with the model. In this plot,
@@ -470,10 +484,9 @@ terms of evaluating the adequacy of the model.
 ![](/Users/dherzberg/OneDrive%20-%20Western%20Psychological%20Services/Desktop/R/cNORM/DOCUMENTATION/cNORM-code-demo-plot.png)
 
 When the plot shows intersecting percentile curves, we re-run the
-`cnorm()` modeling function with different parameters (i.e., different
-values of `k` and `terms`), in order to find a model that yields
-non-intersecting curves (if such a model exists). To examine alternative
-models, we use another diagnostic tool:
+`cnorm()` modeling function with different values of `terms`, in order
+to find a model that yields non-intersecting curves (if such a model
+exists). To examine alternative models, we use another diagnostic tool:
 `plot(model, "series", end = 8)`. This call of `plot()` returns a series
 of percentile graphs for `terms = 1` through `terms = 8`. Often, varying
 the number of regression terms will result in a plot with
@@ -488,7 +501,7 @@ sharply around the raw score data points (colored circles). In contrast,
 a properly fitted model will yield smoothly increasing parallel colored
 lines.
 
-Another diagnostic aid is `checkConsistency(model)`, which offers a
+A further diagnostic aid is `checkConsistency(model)`, which offers a
 programmatic check on monotonicity. When `checkConsistency()` returns
 `FALSE`, it indicates that the norming model is adequately specified,
 with no violations of monotonicity. If `checkConsistency()` finds
@@ -504,7 +517,7 @@ of selecting the least-flawed model, and then manually correcting score
 reversals and other anomalies in the resulting raw-to-norm-score lookup
 tables.
 
-```{r cNORM-demo, echo = 66:67, eval = F}
+```{r cNORM-demo, echo = 65:66, eval = F}
 ```
 
 ##### 3. Output
@@ -536,7 +549,7 @@ age group is expressed as a decimal age value: the mid-point of the age
 range defined by the group's corresponding text label. For example,
 `6.167` expresses the mid-point of the age range defined by `"6.0-6.3"`.
 
-```{r cNORM-demo, echo = 91:114, eval = F}
+```{r cNORM-demo, echo = 91:113, eval = F}
 ```
 
 The remaining arguments to `rawTable()`are:
@@ -554,7 +567,7 @@ The remaining arguments to `rawTable()`are:
 -   `pretty`: a table-formatting command (here, it is set to `FALSE` so
     that we can impose custom formatting on the output tables) .
 
-```{r cNORM-demo, echo = 115:122, eval = F}
+```{r cNORM-demo, echo = 114:121, eval = F}
 ```
 
 When `rawTable()` is used in this manner to create lookup tables for
@@ -571,7 +584,7 @@ passed to `summarize()`, which keeps `raw` in its current numerical
 format, while rounding and renaming `norm` (to `ss`, an acronym for the
 IQ-type standard score).
 
-```{r cNORM-demo, echo = 123:127, eval = F}
+```{r cNORM-demo, echo = 122:126, eval = F}
 ```
 
 Here is an example of a lookup table with this formatting applied (and
@@ -674,7 +687,7 @@ changing pairs of `agestrat` and `ss`. Once the rows have cycled through
 all values of `agestrat` (that is, all age groups), the sequence starts
 over for the *next* value of raw.
 
-```{r cNORM-demo, echo = 128:133, eval = F}
+```{r cNORM-demo, echo = 128:132, eval = F}
 ```
 
 With the data in this format, we can define "reversal" and identify
@@ -714,7 +727,7 @@ rows except those where a reversal occurs. We use `select()` to drop the
 `reversal` marker column, which is now superfluous, and `write_csv()`
 the output report.
 
-```{r cNORM-demo, echo = 134:140, eval = F}
+```{r cNORM-demo, echo = 133:140, eval = F}
 ```
 
 The resulting `reversal_report` identifies reversal locations within the
@@ -765,7 +778,7 @@ replicating the analysis. Three arguments are passed to
     `model` object.
 -   `file =` specifies the file path for the .txt output.
 
-```{r cNORM-demo, echo = 160:166, eval = F}
+```{r cNORM-demo, echo = 160:165, eval = F}
 ```
 
 An example of a model summary appears below.
