@@ -1,0 +1,81 @@
+---
+title: "Using cNORM's weighting feature"
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### Overview
+
+`cNORM` includes functions for weighting data from non-demographically
+representative normative samples. The weighting functions can be used to
+correct bias in the raw-to-norm-score relationships that might be
+introduced by non-representative data.
+
+The current documentation is for a demonstration script prepared by the
+`cNORM` author group. For an input normative data set, the script makes
+use of the `ppvt` (Peabody Picture Vocabulary Test) data set, which is
+included in the `cNORM` package.
+
+Two demographic variables are employed in this example: sex (`1` =
+`male`, `2` = `female`) and migration status (`0` = `no`, `1` = `yes`).
+The weighting functions require as input the target percentages for
+demographic variables, which are usually obtained from US Census data.
+Ersatz target values are use in the current demonstration
+
+To run this demonstration, set up an RStudio project called `cNORM`,
+with subfolders `CODE`, `INPUT-FILES` and `OUTPUT-FILES`. Save scripts
+in `CODE`, and run them from within the `cNORM` project.
+
+#### Executable Code
+
+```{r cNORM-weighting-demo, eval = FALSE}
+suppressMessages(library(cNORM))
+suppressMessages(suppressWarnings(library(tidyverse)))
+
+norm_data <- ppvt
+View(norm_data)
+
+marginals_ppvt <- data.frame(var = c("sex", "sex", "migration", "migration"),
+                             level = c(1,2,0,1),
+                             prop = c(0.5100, 0.4900, 0.6500, 0.3500))
+View(marginals_ppvt)
+
+
+prop.table(xtabs(~sex, data=norm_data)) # shares of males / females
+prop.table(xtabs(~migration, data=norm_data)) # shares of migration no / yes
+prop.table(xtabs(~migration + sex, data=norm_data)) # single cells
+
+weights_ppvt <- computeWeights(data = norm_data, population.margins = marginals_ppvt)
+
+norm_data$weights <- weights_ppvt
+norm_data_split <- norm_data %>% group_by(sex, migration) %>% summarize(weights = unique(weights))
+View(norm_data_split)
+
+model_ppvt <- cnorm(raw     =  norm_data$raw,
+                    group   = norm_data$group,
+                    weights = weights_ppvt)
+
+plot(model_ppvt, "subset")
+normTable(c(5, 6, 7), model_ppvt)
+```
+
+#### Commented Snippets
+
+Load packages for norming (`cNORM`) and data wrangling (`tidyverse`).
+Load the `ppvt` data set into the `norm_date` object. `View()` the data
+set to inspect the following columns:
+
+-   `age`: as a decimal value
+-   `sex`, `migration`, `region`: demographic variables
+-   `raw`: PPVT raw score
+-   `group`: age group membership (previously assigned by `cNORM`),
+    group lables are mean value of age for all individuals in that group
+
+```{r cNORM-weighting-demo, echo = 1:5, eval = F}
+```

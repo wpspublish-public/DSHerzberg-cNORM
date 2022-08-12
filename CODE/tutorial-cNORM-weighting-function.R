@@ -9,7 +9,8 @@
 ################################################################################
 
 # Load data set ----------------------------------------------------------------
-library(cNORM)
+suppressMessages(library(cNORM))
+suppressMessages(suppressWarnings(library(tidyverse)))
 
 # Firstly, the data set is loaded and assigned to the variable norm.data
 norm.data <- ppvt
@@ -41,7 +42,6 @@ weights.ppvt <- computeWeights(data = norm.data, population.margins = marginals.
 
 
 # Let's check, which weights resulted (just for demo; not necessary)
-library(dplyr)
 norm.data$weights <- weights.ppvt
 norm.data.split <- norm.data %>% group_by(sex, migration) %>% summarize(weights = unique(weights))
 View(norm.data.split)
