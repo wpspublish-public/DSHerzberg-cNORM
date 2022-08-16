@@ -373,7 +373,8 @@ non-demographically representative normative samples. The weighting
 functions can be used to correct bias in the raw-to-norm-score
 relationships that might be introduced by non-representative data.</p>
 <p>The core documentation for the use of <code>cNORM</code> is provided
-in <em>Generating raw-to-norm-score lookup tables with cNORM</em>.</p>
+in <strong><em>Generating raw-to-norm-score lookup tables with
+cNORM</em>.</strong></p>
 <p>The current documentation is for a demonstration script prepared by
 the <code>cNORM</code> author group. For an input normative data set,
 the script makes use of the <code>ppvt</code> (Peabody Picture
@@ -385,7 +386,46 @@ package.</p>
 <code>no</code>, <code>1</code> = <code>yes</code>). The weighting
 functions require as input the target percentages for demographic
 variables, which are usually obtained from US Census data. Ersatz target
-values are use in the current demonstration</p>
+values are use in the current demonstration.</p>
+<p>To understand the procedures described below, it’s useful to
+visualize a two-by-two contingency table, with rows for the values of
+<code>sex</code> and columns for the values of <code>migration</code>.
+This table has four joint cross-classification cells, representing the
+four possible combinations of the categories of <code>sex</code> and
+<code>migration</code>.</p>
+<p>We can represent the target percentages for each demographic variable
+on the table margins (that is, on the left and upper edges of the
+table.) These <em>marginal percentages</em>, of course, sum to 100% for
+each variable. The cells contain the joint classification percentages,
+which we obtain by multiplying the marginal percentages for that row and
+column. In this way, the four <em>joint percentages</em> also sum to
+100%.</p>
+<p><em>Marginal</em> and <em>joint</em> are often used in analogous ways
+to modify terms such as <em>proportions</em>, <em>distributions</em>,
+and so on. “Marginal” thus refers to the categories of a single
+variable, considered independently from all others, and “joint” refers
+to the crossing of categories of two or more variables.</p>
+<table>
+<thead>
+<tr class="header">
+<th align="right"></th>
+<th align="center">Migrant</th>
+<th align="center">Non-migrant</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right"><strong>Male</strong></td>
+<td align="center">Male, Migrant</td>
+<td align="center">Male, Non-migrant</td>
+</tr>
+<tr class="even">
+<td align="right"><strong>Female</strong></td>
+<td align="center">Female, Migrant</td>
+<td align="center">Female, Non-migrant</td>
+</tr>
+</tbody>
+</table>
 <p>To run this demonstration, set up an RStudio project called
 <code>cNORM</code>, with subfolders <code>CODE</code>,
 <code>INPUT-FILES</code> and <code>OUTPUT-FILES</code>. Save scripts in
@@ -405,9 +445,9 @@ marginals_ppvt &lt;- data.frame(var = c(&quot;sex&quot;, &quot;sex&quot;, &quot;
                              prop = c(0.5100, 0.4900, 0.6500, 0.3500))
 View(marginals_ppvt)
 
-prop.table(xtabs(~sex, data=norm_data))
-prop.table(xtabs(~migration, data=norm_data))
-prop.table(xtabs(~migration + sex, data=norm_data))
+prop.table(xtabs(~sex, data = norm_data))
+prop.table(xtabs(~migration, data = norm_data))
+prop.table(xtabs(~migration + sex, data = norm_data))
 
 weights_ppvt &lt;- computeWeights(data = norm_data, population.margins = marginals_ppvt)
 
@@ -489,11 +529,25 @@ classified <code>1</code> for <code>sex</code>,
 for those variables, considered independently of one another. The are so
 named because they appear at the margins (right and top edges) of a
 two-way cross-tabulation table.</p>
-<pre class="r"><code>prop.table(xtabs(~sex, data=norm_data))
-prop.table(xtabs(~migration, data=norm_data))
-prop.table(xtabs(~migration + sex, data=norm_data))</code></pre>
-<p>appear at the margins (right and top edges) of a two-way
-cross-tabulation table.</p>
+<pre class="r"><code>prop.table(xtabs(~sex, data = norm_data))
+prop.table(xtabs(~migration, data = norm_data))
+prop.table(xtabs(~migration + sex, data = norm_data))</code></pre>
+<p><code>computeWeight()</code> is <code>cNORM</code>’s weighting
+function. Its arguments are the input data set <code>data =</code> and
+the data frame containing the target census percentages
+<code>population.margines =</code>.</p>
+<p>describe raking: weights are Raking does not draw on 145 the explicit
+joint distributions associated with all possible cross-classifications.
+Instead, the 146 post-stratification weights are determined in an
+iterative process based on the marginal 147 distributions of each
+demographic variable. That is, the weights assigned to the demographic
+148 categories are adjusted successively and, if necessary, repeatedly,
+until they no longer 149 change.</p>
+<p>describe standardization of weights (see manuscript with Lenhards)
+Additionally, we standardized the weights to make them easier to
+interpret. We 385 divided each weight by the smallest weight in the
+respective norm sample, thereby setting the 386 weight of the most group
+in the sample to 1.</p>
 <pre class="r"><code>weights_ppvt &lt;- computeWeights(data = norm_data, population.margins = marginals_ppvt)</code></pre>
 </div>
 
