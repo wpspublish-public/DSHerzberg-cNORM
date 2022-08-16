@@ -17,6 +17,9 @@ representative normative samples. The weighting functions can be used to
 correct bias in the raw-to-norm-score relationships that might be
 introduced by non-representative data.
 
+The core documentation for the use of `cNORM` is provided in *Generating
+raw-to-norm-score lookup tables with cNORM*.
+
 The current documentation is for a demonstration script prepared by the
 `cNORM` author group. For an input normative data set, the script makes
 use of the `ppvt` (Peabody Picture Vocabulary Test) data set, which is
@@ -46,10 +49,9 @@ marginals_ppvt <- data.frame(var = c("sex", "sex", "migration", "migration"),
                              prop = c(0.5100, 0.4900, 0.6500, 0.3500))
 View(marginals_ppvt)
 
-
-prop.table(xtabs(~sex, data=norm_data)) # shares of males / females
-prop.table(xtabs(~migration, data=norm_data)) # shares of migration no / yes
-prop.table(xtabs(~migration + sex, data=norm_data)) # single cells
+prop.table(xtabs(~sex, data = norm_data))
+prop.table(xtabs(~migration, data = norm_data))
+prop.table(xtabs(~migration + sex, data = norm_data))
 
 weights_ppvt <- computeWeights(data = norm_data, population.margins = marginals_ppvt)
 
@@ -68,14 +70,67 @@ normTable(c(5, 6, 7), model_ppvt)
 #### Commented Snippets
 
 Load packages for norming (`cNORM`) and data wrangling (`tidyverse`).
-Load the `ppvt` data set into the `norm_date` object. `View()` the data
+Assign the `ppvt` data set to the `norm_data` object. `View()` the data
 set to inspect the following columns:
 
--   `age`: as a decimal value
--   `sex`, `migration`, `region`: demographic variables
--   `raw`: PPVT raw score
+-   `age`: as a decimal value.
+-   `sex`, `migration`, `region`: demographic variables (`region` is not
+    used in this example).
+-   `raw`: PPVT raw score.
 -   `group`: age group membership (previously assigned by `cNORM`),
-    group lables are mean value of age for all individuals in that group
+    group labels are mean value of age for all persons in that group.
 
 ```{r cNORM-weighting-demo, echo = 1:5, eval = F}
+```
+
+`cNORM` requires that the target demographic percentages, or "marginals"
+be specified in a multi-level data frame with three columns:
+
+-   `var`: names of demographic variables in the analysis, each name is
+    repeated for the number of categories (levels) in that variable
+    (e.g., `sex` has `male` and `female` categories, so it is specified
+    twice). `level` and `prop` have values for each category of the
+    demographic variables named on `var`; that is, `level` and `prop`
+    are nested within `var`.
+-   `level`: numerical coding for categories of `var`.
+-   `prop`: target census percentages for categories of `var`, specified
+    as decimal proportions.
+
+The data frame is initialized with `data.frame()` and assigned to
+`marginals_ppvt`.
+
+```{r cNORM-weighting-demo, echo = 7:10, eval = F}
+```
+
+The next snippet uses `prop.table(xtabs())` to provide a view (in the
+console) of actual percentages of `sex` and `migration` in `norm_data`.
+The first two lines process `sex` and `migration` independently. In the
+inner parentheses, the variable to be processed is specified with the
+formula operator `~`, and the input data object is given in the `data =`
+argument. `xtabs()` counts the number of persons in each category of the
+named variable, and `prop.table()` converts these counts into decimal
+proportions.
+
+The third line processes the cross-tabulation of the two demographic
+variables (specified with `~migration + sex`). The values in the
+resulting 2 x 2 table are the *joint proportions* for the four
+cross-classification cells. For instance, the value in the upper-left
+cell is the proportion of persons in the sample who are classified `1`
+for `sex`, ***and*** `0` for `migration`.
+
+By contrast, values calculated by the single-variable calls of
+`prop.table(xtabs())` are the *marginal proportions* for those
+variables, considered independently of one another. The are so named
+because they appear at the margins (right and top edges) of a two-way
+cross-tabulation table.
+
+```{r cNORM-weighting-demo, echo = 12:14, eval = F}
+```
+
+`computeWeight()` is `cNORM`'s weighting function. Its arguments are the input data set `data = ` and the data frame containing the target census percentages `population.margines = `.
+
+describe raking
+describe standardization of weights (see manuscript with Lenhards)
+
+```{r cNORM-weighting-demo, echo = 16, eval = F}
 ```

@@ -10,8 +10,6 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-### Generating raw-to-norm-score lookup tables with `cNORM`
-
 #### Overview
 
 This demonstration uses the `cNORM` package to fit a norming model to a
