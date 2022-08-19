@@ -14,7 +14,7 @@ suppressMessages(suppressWarnings(library(tidyverse)))
 
 # Firstly, the data set is loaded and assigned to the variable norm.data
 norm_data <- ppvt
-View(normdata)
+View(norm_data)
 
 # Secondly, assigning population marginals to variable marginals.ppvt
 # Note: The marginals have to be in the shown format, especially the order
@@ -33,36 +33,27 @@ prop.table(xtabs(~sex, data = norm_data))
 prop.table(xtabs(~migration, data = norm_data))
 prop.table(xtabs(~sex + migration, data = norm_data))
 
-
-
 # Step 1: Compute and standardize raking weights -------------------------------
 
 # Calculate standardized raking weights using computeWeights()
 norm_data <- norm_data %>% 
-  add_column("weights" = NA) %>% 
-  mutate(
-    across(
-      weights,
-      ~
-        computeWeights(data = norm_data, population.margins = marginals_ppvt)
-    )
-  )
-
-
-
-weights.ppvt <- computeWeights(data = norm.data, population.margins = marginals.ppvt)
-
+  mutate(weights = computeWeights(data = norm_data, population.margins = marginals_ppvt))
 
 # Let's check, which weights resulted (just for demo; not necessary)
-norm.data$weights <- weights.ppvt
-norm.data.split <- norm.data %>% group_by(sex, migration) %>% summarize(weights = unique(weights))
-View(norm.data.split)
+norm_data_weights <- norm_data %>%
+  group_by(sex, migration) %>%
+  summarize(weights = unique(weights))
+View(norm_data_weights)
+
 
 
 # Step 2: ranking and modeling is done in a single step ------------------------
-model.ppvt <- cnorm(raw     =  norm.data$raw,
-                    group   = norm.data$group,
-                    weights = weights.ppvt)
+model_weighted <- cnorm(raw = norm_data$raw,
+                       group = norm_data$group,
+                       weights = norm_data$weights)
+
+model_unweighted <- cnorm(raw = norm_data$raw,
+                       group = norm_data$group)
 
 # further steps like model selection
 plot(model.ppvt, "subset")

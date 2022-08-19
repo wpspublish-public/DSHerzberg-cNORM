@@ -92,11 +92,17 @@ marginals_ppvt <- data.frame(var = c("sex", "sex", "migration", "migration"),
                              prop = c(0.5100, 0.4900, 0.6500, 0.3500))
 View(marginals_ppvt)
 
-weights_ppvt <- computeWeights(data = norm_data, population.margins = marginals_ppvt)
-norm_data$weights <- weights_ppvt
+prop.table(xtabs(~sex, data = norm_data))
+prop.table(xtabs(~migration, data = norm_data))
+prop.table(xtabs(~sex + migration, data = norm_data))
 
-norm_data_split <- norm_data %>% group_by(sex, migration) %>% summarize(weights = unique(weights))
-View(norm_data_split)
+norm_data <- norm_data %>% 
+  mutate(weights = computeWeights(data = norm_data, population.margins = marginals_ppvt))
+
+norm_data_weights <- norm_data %>%
+  group_by(sex, migration) %>%
+  summarize(weights = unique(weights))
+View(norm_data_weights)
 
 model_ppvt <- cnorm(raw     =  norm_data$raw,
                     group   = norm_data$group,
@@ -136,7 +142,8 @@ columns:
 -   `prop`: target census percentages for categories of `var`, specified
     as decimal proportions.
 
-The data frame is initialized with `data.frame()` and assigned to
+The columns must be in the left-right sequence shown here. The data
+frame is initialized with `data.frame()` and assigned to
 `marginals_ppvt`.
 
 ![](images/Screen%20Shot%202022-08-18%20at%202.43.24%20PM.png){width="200"}
@@ -180,13 +187,26 @@ weights, by dividing each weight by the smallest weight yielded by
 analysis. This sets the weight associated with the most over-sampled
 joint classification cell to 1. The weights in the current example are:
 
-|                    |   Non-migrant   |       Migrant       |
-|-------------------:|:-----------------------:|:---------------------------:|
-|   **Male** |  Male, Migrant: 1.000000 |  Male, Non-migrant: 1.403915  |
+|            |        Non-migrant        |            Migrant            |
+|-----------:|:-------------------------:|:-----------------------------:|
+|   **Male** |  Male, Migrant: 1.000000  |  Male, Non-migrant: 1.403915  |
 | **Female** | Female, Migrant: 1.007713 | Female, Non-migrant: 1.414743 |
 
+In this script, we pipe `norm_data` into `mutate()` to create a new column `weights`. Within `mutate()`, we execute `computeWeights()`, populating the new column with the weights for each person in `norm_data`.
 
-********START WITH NEW TIDYVERSE EDIT
+```{r cNORM-weighting-demo, echo = 16:17, eval = F}
+```
 
-```{r cNORM-weighting-demo, echo = 16:20, eval = F}
+The script generates a data frame `norm_data_weights` that shows the
+weights associated with the four cross-classification cells. In this
+snippet, we group `norm_data` by `sex` and `migration`, which creates a
+four-row structure to hold the weights for the cross-classification
+cells. We then call `summarize`, which appends a new column `weights` to
+the four-row summary table. `unique()` returns only the unique values
+from its argument (a vector or column). Here, it fills the `weights`
+column with a single correct value for each row.
+
+![](images/Screen%20Shot%202022-08-19%20at%204.10.17%20PM-01.png){width="249"}
+
+```{r cNORM-weighting-demo, echo = 19:23, eval = F}
 ```
