@@ -30,9 +30,9 @@ For normative data, the script uses the `ppvt` (Peabody Picture
 Vocabulary Test) data set, which is included in the `cNORM` package.
 Weighting is applied with respect to two demographic variables, each
 with two categories (levels): `sex` (`1` = `male`, `2` = `female`) and
-`migration` status (`0` = `no`, `1` = `yes`). `cNORM`'s weighting function
-requires target percentages for the demographic categories, which are
-usually obtained from US Census data.[^2]
+`migration` status (`0` = `no`, `1` = `yes`). `cNORM`'s weighting
+function requires target percentages for the demographic categories,
+which are usually obtained from US Census data.[^2]
 
 [^2]: Ersatz target percentages are use in the current demonstration.
 
@@ -45,8 +45,9 @@ of the categories of `sex` and `migration`.
 We can represent the target percentages for each demographic variable on
 the table margins (that is, on the left and upper edges of the table.)
 These *marginal percentages*, of course, sum to 100% for each variable.
-The cells contain the *joint classification percentages* (also summing to 100%), which are obtained
-by multiplying the marginal percentages for each cell's row and column.
+The cells contain the *joint classification percentages* (also summing
+to 100%), which are obtained by multiplying the marginal percentages for
+each cell's row and column.
 
 |                    |   Non-migrant (65.0%)   |       Migrant (35.0%)       |
 |-------------------:|:-----------------------:|:---------------------------:|
@@ -60,10 +61,22 @@ others, and "joint" refers to the crossing of categories of two or more
 variables.
 
 The target percentages are the standard of demographic
-representativeness. To compensate for non-representativeness in the normative sample, `cNORM`uses the target percentages to calculate weighting multipliers. These weights are
-applied at the raw-score level to adjust the parameters of the raw-score distributions within demographic categories. The intended effect is for the weighted raw scores to have the same numerical impact on the norming process as would unweighted raw scores in a demographically representative normative sample (i.e., one in which the sample percentages match the target percentages).
+representativeness. To compensate for non-representativeness in the
+normative sample, `cNORM`uses the target percentages to calculate
+weighting multipliers. These weights are applied at the raw-score level
+to adjust the parameters of the raw-score distributions within
+demographic categories. The intended effect is for the weighted raw
+scores to have the same numerical impact on the norming process as would
+unweighted raw scores in a demographically representative normative
+sample (i.e., one in which the sample percentages match the target
+percentages).
 
-`cNORM` determines the weights by means of an iterative mathematical process called *raking*. Importantly, raking operates only on the marginal percentages. The underlying equations do not explicitly incorporate the joint percentages. So, although target joint percentages are sometimes available in US Census data, they are never used as inputs for `cNORM`'s weighting function.
+`cNORM` determines the weights by means of an iterative mathematical
+process called *raking*. Importantly, raking operates only on the
+marginal percentages. The underlying equations do not explicitly
+incorporate the joint percentages. So, although target joint percentages
+are sometimes available in US Census data, they are never used as inputs
+for `cNORM`'s weighting function.
 
 #### Executable Code
 
@@ -79,13 +92,9 @@ marginals_ppvt <- data.frame(var = c("sex", "sex", "migration", "migration"),
                              prop = c(0.5100, 0.4900, 0.6500, 0.3500))
 View(marginals_ppvt)
 
-prop.table(xtabs(~sex, data = norm_data))
-prop.table(xtabs(~migration, data = norm_data))
-prop.table(xtabs(~migration + sex, data = norm_data))
-
 weights_ppvt <- computeWeights(data = norm_data, population.margins = marginals_ppvt)
-
 norm_data$weights <- weights_ppvt
+
 norm_data_split <- norm_data %>% group_by(sex, migration) %>% summarize(weights = unique(weights))
 View(norm_data_split)
 
@@ -113,21 +122,24 @@ set to inspect the following columns:
 ```{r cNORM-weighting-demo, echo = 1:5, eval = F}
 ```
 
-`cNORM` requires that the target demographic percentages, or "marginals"
-be specified in a multi-level data frame with three columns:
+`cNORM` requires that the target demographic percentages, or
+"marginals", be specified in a multi-level data frame with three
+columns:
 
 -   `var`: names of demographic variables in the analysis, each name is
     repeated for the number of categories (levels) in that variable
     (e.g., `sex` has `male` and `female` categories, so it is specified
     twice). `level` and `prop` have values for each category of the
-    demographic variables named on `var`; that is, `level` and `prop`
-    are nested within `var`.
+    demographic variables named on `var` (i.e., `level` and `prop` are
+    nested within `var`).
 -   `level`: numerical coding for categories of `var`.
 -   `prop`: target census percentages for categories of `var`, specified
     as decimal proportions.
 
 The data frame is initialized with `data.frame()` and assigned to
 `marginals_ppvt`.
+
+![](images/Screen%20Shot%202022-08-18%20at%202.43.24%20PM.png){width="200"}
 
 ```{r cNORM-weighting-demo, echo = 7:10, eval = F}
 ```
@@ -142,7 +154,7 @@ named variable, and `prop.table()` converts these counts into decimal
 proportions.
 
 The third line processes the cross-tabulation of the two demographic
-variables (specified with `~migration + sex`). The values in the
+variables (specified with `~sex + migration`). The values in the
 resulting 2 x 2 table are the *joint proportions* for the four
 cross-classification cells. For instance, the value in the upper-left
 cell is the proportion of persons in the sample who are classified `1`
@@ -150,9 +162,7 @@ for `sex`, ***and*** `0` for `migration`.
 
 By contrast, values calculated by the single-variable calls of
 `prop.table(xtabs())` are the *marginal proportions* for those
-variables, considered independently of one another. The are so named
-because they appear at the margins (right and top edges) of a two-way
-cross-tabulation table.
+variables, considered independently of one another.
 
 ```{r cNORM-weighting-demo, echo = 12:14, eval = F}
 ```
@@ -161,7 +171,22 @@ cross-tabulation table.
 input data set `data =` and the data frame containing the target census
 percentages `population.margins =`.
 
-`computeWeight()` calculates weights for each joint classification cell, based on the marginal percentages for the demographic variables. It returns a numerical vector (here assigned to `weights_ppvt`) containing weights for each person in the normative sample, based on that person's demographic classification. `computeWeight()` also standardizes the weights, by dividing each weight by the smallest weight yielded by analysis. This sets the weight associated with the most over-sampled joint classification cell to 1. For the current demonstration anal
+`computeWeight()` calculates weights for each joint classification cell,
+based on the marginal percentages for the demographic variables. It
+returns a numerical vector (here assigned to `weights_ppvt`) containing
+weights for each person in the normative sample, based on that person's
+demographic classification. `computeWeight()` also standardizes the
+weights, by dividing each weight by the smallest weight yielded by
+analysis. This sets the weight associated with the most over-sampled
+joint classification cell to 1. The weights in the current example are:
 
-```{r cNORM-weighting-demo, echo = 16, eval = F}
+|                    |   Non-migrant   |       Migrant       |
+|-------------------:|:-----------------------:|:---------------------------:|
+|   **Male** |  Male, Migrant: 1.000000 |  Male, Non-migrant: 1.403915  |
+| **Female** | Female, Migrant: 1.007713 | Female, Non-migrant: 1.414743 |
+
+
+********START WITH NEW TIDYVERSE EDIT
+
+```{r cNORM-weighting-demo, echo = 16:20, eval = F}
 ```

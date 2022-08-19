@@ -13,31 +13,43 @@ suppressMessages(library(cNORM))
 suppressMessages(suppressWarnings(library(tidyverse)))
 
 # Firstly, the data set is loaded and assigned to the variable norm.data
-norm.data <- ppvt
-View(norm.data)
+norm_data <- ppvt
+View(normdata)
 
 # Secondly, assigning population marginals to variable marginals.ppvt
 # Note: The marginals have to be in the shown format, especially the order
 # of the columns must be the variables names first, secondly, the single levels
 # of the variables, and finally the single proportions.
 # Each level of each factor needs its own row.
-marginals.ppvt <- data.frame(var = c("sex", "sex", "migration", "migration"),
+marginals_ppvt <- data.frame(var = c("sex", "sex", "migration", "migration"),
                              level = c(1,2,0,1),
                              prop = c(0.5100, 0.4900, 0.6500, 0.3500))
-View(marginals.ppvt)
+View(marginals_ppvt)
 
 
 # In comparison: The actual composition ot the sample regarding sex and
 # migration status (just for demonstration purposes)
-prop.table(xtabs(~sex, data=norm.data)) # shares of males / females
-prop.table(xtabs(~migration, data=norm.data)) # shares of migration no / yes
-prop.table(xtabs(~migration + sex, data=norm.data)) # single cells
+prop.table(xtabs(~sex, data = norm_data))
+prop.table(xtabs(~migration, data = norm_data))
+prop.table(xtabs(~sex + migration, data = norm_data))
 
 
 
 # Step 1: Compute and standardize raking weights -------------------------------
 
 # Calculate standardized raking weights using computeWeights()
+norm_data <- norm_data %>% 
+  add_column("weights" = NA) %>% 
+  mutate(
+    across(
+      weights,
+      ~
+        computeWeights(data = norm_data, population.margins = marginals_ppvt)
+    )
+  )
+
+
+
 weights.ppvt <- computeWeights(data = norm.data, population.margins = marginals.ppvt)
 
 
