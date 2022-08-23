@@ -104,12 +104,72 @@ norm_data_weights <- norm_data %>%
   summarize(weights = unique(weights))
 View(norm_data_weights)
 
-model_ppvt <- cnorm(raw     =  norm_data$raw,
-                    group   = norm_data$group,
-                    weights = weights_ppvt)
+model_weighted <- cnorm(raw = norm_data$raw,
+                       group = norm_data$group,
+                       weights = norm_data$weights,
+                       scale = "IQ")
 
-plot(model_ppvt, "subset")
-normTable(c(5, 6, 7), model_ppvt)
+model_unweighted <- cnorm(raw = norm_data$raw,
+                       group = norm_data$group,
+                       scale = "IQ")
+
+age_strat <- c(3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5, 
+                 11.5, 12.5, 13.5, 14.5, 15.5, 16.5)
+
+norms_list_weighted <- rawTable(
+  age_strat,
+  model_weighted,
+  step = 1,
+  minNorm = 40,
+  maxNorm = 130,
+  minRaw = 7,
+  maxRaw = 221,
+  pretty = FALSE
+) %>%
+  map(~
+        select(.x, raw, norm) %>%
+        summarize(raw = raw,
+                  ss = round(norm, 0)))
+
+table_weighted <- norms_list_weighted %>%
+  reduce(left_join,
+         by = "raw") %>%
+  set_names("raw", age_strat)
+
+norms_list_unweighted <- rawTable(
+  age_strat,
+  model_unweighted,
+  step = 1,
+  minNorm = 40,
+  maxNorm = 130,
+  minRaw = 7,
+  maxRaw = 221,
+  pretty = FALSE
+) %>%
+  map(~
+        select(.x, raw, norm) %>%
+        summarize(raw = raw,
+                  ss = round(norm, 0)))
+
+table_unweighted <- norms_list_unweighted %>%
+  reduce(left_join,
+         by = "raw") %>%
+  set_names("raw", age_strat)
+
+comp_w_uw <-full_join(
+  table_weighted,
+  table_unweighted,
+  by = "raw"
+) %>% 
+  select(-raw)
+
+chi <- sapply(seq_len(nrow(comp_w_uw)), function(x) {
+  chisq.test(matrix(as.numeric(comp_w_uw[x, 1:28]), nrow = 2, 14, 2))$statistic
+})
+comp_w_uw$chi_square <- chi
+
+chi_sq_max <- max(comp_w_uw$chi_square)
+df <- length(age_strat) - 1
 ```
 
 #### Commented Snippets
@@ -192,7 +252,10 @@ joint classification cell to 1. The weights in the current example are:
 |   **Male** |  Male, Migrant: 1.000000  |  Male, Non-migrant: 1.403915  |
 | **Female** | Female, Migrant: 1.007713 | Female, Non-migrant: 1.414743 |
 
-In this script, we pipe `norm_data` into `mutate()` to create a new column `weights`. Within `mutate()`, we execute `computeWeights()`, populating the new column with the weights for each person in `norm_data`.
+In this script, we pipe `norm_data` into `mutate()` to create a new
+column `weights`. Within `mutate()`, we execute `computeWeights()`,
+populating the new column with the weights for each person in
+`norm_data`.
 
 ```{r cNORM-weighting-demo, echo = 16:17, eval = F}
 ```
@@ -209,4 +272,42 @@ column with a single correct value for each row.
 ![](images/Screen%20Shot%202022-08-19%20at%204.10.17%20PM-01.png){width="249"}
 
 ```{r cNORM-weighting-demo, echo = 19:23, eval = F}
+```
+
+The next code block uses `cnorm()` to execute the normative modeling
+process, for both the weighted and original (unweighted) input samples.
+Note the use of the argument `weights =` to produce the weighted model.
+
+The code then generates raw-to-norm-score lookup tables for the weighted
+and unweighted norm models. The modeling and output table functions of
+`cNORM` are documented in detail elsewhere.[^3]
+
+[^3]: See ***Generating raw-to-norm-score lookup tables with
+    cNORM*****.**
+
+```{r cNORM-weighting-demo, echo = 24:74, eval = F}
+```
+
+Nan Wang of WPS R&D has created a method for comparing raw-to-norm-score
+lookup tables based on weighted vs. unweighted data. The method includes
+both testing for a statistically significant difference, and calculating
+an effect size measure for the difference between weighted and
+unweighted tables.
+
+The logic of the statistical test is to view the two lookup tables as
+essential two different samples, in which we can use the chi-square test
+to compare the distributions of a categorical variable between the two
+samples. In this test, the null hypothesis is that there is no
+difference between the distributions of the two tables, and the
+alternative hypothesis is that a difference exists. The degrees of
+freedom for this test is the number of age groups in the raw-to-norm
+score lookup tables, minus one (here: 14-1 = 13).
+
+To compare the two tables, we first combine them with `full_join()`, and then drop the `raw` column with `select()`. This returns a single data frame `comp_w_uw` holding only the weighted and unweighted standard score columns, arranged side-by-side.
+```{r cNORM-weighting-demo, echo = 75:82, eval = F}
+```
+The next snippet includes a custom function in base R to conduct the chi-square test on `comp_w_uw`. It appends `comp_w_uw` with a new column `chi-square` that contains row-wise chi-square statistics. To clarify, each row of `comp_w_uw` contains the standard scores corresponding to a single raw score, by age group, for the weighted and unweighted normative models. The chi-square statistic represents a test of whether the null hypothesis can be rejected; that is, that there is a statistically significant difference between the distribution of corresponding standard scores to that raw score, between the weighted and unweighed tables.
+
+We can then obtain the numbers needed to look up the threshold of statistical significance the chi-square distribution table. `chi_sq_max` (here 0.311) is the maximum of the row-wise chi-square statistics, and `df` (here 13) is the degrees of freedom of the statistical test. Examining the chi-square distribution table for df = 13 and p < .05, we find chi-square = 5.89. Comparing `chi_sq_max` to this value, we cannot reject the null hypothesis that there is no difference between the distributions embodied by the two lookup tables. In other words, the weighted and unweighted raw-to-norm-score look up tables, though they may include numerous small pairwise differences between cells, do not differ significantly from each other, when we apply the chi-square test in the manner described.
+```{r cNORM-weighting-demo, echo = 83:89, eval = F}
 ```

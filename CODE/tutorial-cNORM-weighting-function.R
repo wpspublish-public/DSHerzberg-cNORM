@@ -50,10 +50,12 @@ View(norm_data_weights)
 # Step 2: ranking and modeling is done in a single step ------------------------
 model_weighted <- cnorm(raw = norm_data$raw,
                        group = norm_data$group,
-                       weights = norm_data$weights)
+                       weights = norm_data$weights,
+                       scale = "IQ")
 
 model_unweighted <- cnorm(raw = norm_data$raw,
-                       group = norm_data$group)
+                       group = norm_data$group,
+                       scale = "IQ")
 
 # further steps like model selection
 plot(model.ppvt, "subset")
