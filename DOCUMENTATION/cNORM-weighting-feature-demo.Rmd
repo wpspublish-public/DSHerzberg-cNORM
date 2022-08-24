@@ -163,13 +163,17 @@ comp_w_uw <-full_join(
 ) %>% 
   select(-raw)
 
-chi <- sapply(seq_len(nrow(comp_w_uw)), function(x) {
-  chisq.test(matrix(as.numeric(comp_w_uw[x, 1:28]), nrow = 2, 14, 2))$statistic
-})
+chi1 <- map_dbl(seq_len(nrow(comp_w_uw)),
+                ~
+                  chisq.test(matrix(as.numeric(comp_w_uw[.x, 1:28]), nrow = 2, 14, 2))$statistic)
 comp_w_uw$chi_square <- chi
 
 chi_sq_max <- max(comp_w_uw$chi_square)
 df <- length(age_strat) - 1
+chi_sq_crit <- qchisq(.05, df)
+if_else(chi_sq_max < chi_sq_crit,
+        "no diff",
+        "diff")
 ```
 
 #### Commented Snippets
@@ -309,5 +313,5 @@ To compare the two tables, we first combine them with `full_join()`, and then dr
 The next snippet includes a custom function in base R to conduct the chi-square test on `comp_w_uw`. It appends `comp_w_uw` with a new column `chi-square` that contains row-wise chi-square statistics. To clarify, each row of `comp_w_uw` contains the standard scores corresponding to a single raw score, by age group, for the weighted and unweighted normative models. The chi-square statistic represents a test of whether the null hypothesis can be rejected; that is, that there is a statistically significant difference between the distribution of corresponding standard scores to that raw score, between the weighted and unweighed tables.
 
 We can then obtain the numbers needed to look up the threshold of statistical significance the chi-square distribution table. `chi_sq_max` (here 0.311) is the maximum of the row-wise chi-square statistics, and `df` (here 13) is the degrees of freedom of the statistical test. Examining the chi-square distribution table for df = 13 and p < .05, we find chi-square = 5.89. Comparing `chi_sq_max` to this value, we cannot reject the null hypothesis that there is no difference between the distributions embodied by the two lookup tables. In other words, the weighted and unweighted raw-to-norm-score look up tables, though they may include numerous small pairwise differences between cells, do not differ significantly from each other, when we apply the chi-square test in the manner described.
-```{r cNORM-weighting-demo, echo = 83:89, eval = F}
+```{r cNORM-weighting-demo, echo = 83:93, eval = F}
 ```

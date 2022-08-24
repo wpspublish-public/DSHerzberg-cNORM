@@ -50,11 +50,16 @@ comp_w_uw <-full_join(
 ) %>% 
   select(-raw)
 
-options(digits = 2)
-chi <- sapply(seq_len(nrow(comp_w_uw)), function(x) {
-  chisq.test(matrix(as.numeric(comp_w_uw[x, 1:28]), nrow = 2, 14, 2))$statistic
-})
+chi1 <- map_dbl(seq_len(nrow(comp_w_uw)),
+                ~
+                  chisq.test(matrix(as.numeric(comp_w_uw[.x, 1:28]), nrow = 2, 14, 2))$statistic)
 comp_w_uw$chi_square <- chi
 
 chi_sq_max <- max(comp_w_uw$chi_square)
 df <- length(age_strat) - 1
+
+if_else(chi_sq_max < chi_sq_crit,
+        "no diff",
+        "diff")
+
+temp2 <- interleave(table_weighted, table_unweighted)

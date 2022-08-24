@@ -538,7 +538,11 @@ chi &lt;- sapply(seq_len(nrow(comp_w_uw)), function(x) {
 comp_w_uw$chi_square &lt;- chi
 
 chi_sq_max &lt;- max(comp_w_uw$chi_square)
-df &lt;- length(age_strat) - 1</code></pre>
+df &lt;- length(age_strat) - 1
+chi_sq_crit &lt;- qchisq(.05, df)
+if_else(chi_sq_max &lt; chi_sq_crit,
+        &quot;no diff&quot;,
+        &quot;diff&quot;)</code></pre>
 </div>
 <div id="commented-snippets" class="section level4">
 <h4>Commented Snippets</h4>
@@ -775,15 +779,19 @@ hypothesis that there is no difference between the distributions
 embodied by the two lookup tables. In other words, the weighted and
 unweighted raw-to-norm-score look up tables, though they may include
 numerous small pairwise differences between cells, do not differ
-significantly from each other, when viewed through the logic of this
-approach of the chi-square test.</p>
+significantly from each other, when we apply the chi-square test in the
+manner described.</p>
 <pre class="r"><code>chi &lt;- sapply(seq_len(nrow(comp_w_uw)), function(x) {
   chisq.test(matrix(as.numeric(comp_w_uw[x, 1:28]), nrow = 2, 14, 2))$statistic
 })
 comp_w_uw$chi_square &lt;- chi
 
 chi_sq_max &lt;- max(comp_w_uw$chi_square)
-df &lt;- length(age_strat) - 1</code></pre>
+df &lt;- length(age_strat) - 1
+chi_sq_crit &lt;- qchisq(.05, df)
+if_else(chi_sq_max &lt; chi_sq_crit,
+        &quot;no diff&quot;,
+        &quot;diff&quot;)</code></pre>
 </div>
 <div class="footnotes footnotes-end-of-document">
 <hr />
