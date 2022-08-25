@@ -163,10 +163,10 @@ comp_w_uw <-full_join(
 ) %>% 
   select(-raw)
 
-chi <- map_dbl(seq_len(nrow(comp_w_uw)),
+chi_square <- map_dbl(seq_len(nrow(comp_w_uw)),
                 ~
                   chisq.test(matrix(as.numeric(comp_w_uw[.x, 1:ncol(comp_w_uw)]), nrow = 2, ncol(comp_w_uw)/2, 2))$statistic)
-comp_w_uw$chi_square <- chi
+comp_w_uw$chi_square <- chi_square
 
 chi_sq_max <- max(comp_w_uw$chi_square)
 df <- length(age_strat) - 1
@@ -292,26 +292,61 @@ and unweighted norm models. The modeling and output table functions of
 ```{r cNORM-weighting-demo, echo = 24:74, eval = F}
 ```
 
-Nan Wang of WPS R&D has created a method for comparing raw-to-norm-score
-lookup tables based on weighted vs. unweighted data. The method includes
-both testing for a statistically significant difference, and calculating
-an effect size measure for the difference between weighted and
-unweighted tables.
+We can compare raw-to-norm-score lookup tables based on weighted vs.
+unweighted data. The method[^4] includes both testing for a
+statistically significant difference, and calculating an effect size
+measure for the difference between weighted and unweighted tables.
+
+[^4]: The method was developed by Nan Wang of WPS R&D.
 
 The logic of the statistical test is to view the two lookup tables as
-essential two different samples, in which we can use the chi-square test
-to compare the distributions of a categorical variable between the two
-samples. In this test, the null hypothesis is that there is no
-difference between the distributions of the two tables, and the
-alternative hypothesis is that a difference exists. The degrees of
-freedom for this test is the number of age groups in the raw-to-norm
-score lookup tables, minus one (here: 14-1 = 13).
+analogous to two different samples. Under this framework, the normative
+age strata represent categories of a nominal variable, and the norm
+scores within those categories are analogous to "counts" of "persons".
+We can then use a chi-square test to compare the two "samples" (lookup
+tables), in terms of the distribution of "persons" (norm score "counts")
+across the "categories" (age strata). In this test, the null hypothesis
+is that there is no difference between the distributions represented by
+the two tables. The alternative hypothesis is that a difference exists.
+The degrees of freedom for this chi-square test is the number of age
+strata in the lookup tables, minus one (here: 14-1 = 13).
 
-To compare the two tables, we first combine them with `full_join()`, and then drop the `raw` column with `select()`. This returns a single data frame `comp_w_uw` holding only the weighted and unweighted standard score columns, arranged side-by-side.
+To compare the two tables, we first combine them with `full_join()`, and
+then drop the `raw` column with `select()`. This returns a single data
+frame `comp_w_uw` holding only the weighted and unweighted standard
+score columns (one for age group), arranged side-by-side.
+
 ```{r cNORM-weighting-demo, echo = 75:82, eval = F}
 ```
-The next snippet conducts the chi-square test on `comp_w_uw`. It appends `comp_w_uw` with a new column `chi_square` that contains row-wise chi-square statistics. To clarify, each row of `comp_w_uw` contains the standard scores corresponding to a single raw score, by age group, for the weighted and unweighted normative models. The chi-square statistic represents a test of whether the null hypothesis can be rejected; that is, that there is a statistically significant difference between the weighted and unweighted tables with respect to the distribution of corresponding standard scores to that raw score.
 
-We can then obtain the numbers needed to look up the threshold of statistical significance the chi-square distribution table. `chi_sq_max` (here 0.311) is the maximum of the row-wise chi-square statistics, and `df` (here 13) is the degrees of freedom of the statistical test. Examining the chi-square distribution table for df = 13 and p < .05, we find chi-square = 5.89. Comparing `chi_sq_max` to this value, we cannot reject the null hypothesis that there is no difference between the distributions embodied by the two lookup tables. In other words, the weighted and unweighted raw-to-norm-score look up tables, though they may include numerous small pairwise differences between cells, do not differ significantly from each other, when we apply the chi-square test in the manner described.
-```{r cNORM-weighting-demo, echo = 83:93, eval = F}
+The next snippet conducts the chi-square test on `comp_w_uw`. It appends
+`comp_w_uw` with a new column `chi_square` that contains row-wise
+chi-square statistics. To clarify, each row of `comp_w_uw` holds the
+standard scores corresponding to a single raw score, by age group, for
+the weighted and unweighted normative models. The chi-square statistic
+represents a test of whether the null hypothesis can be rejected; that
+is, whether there is a statistically significant difference between the
+weighted and unweighted tables with respect to the distribution of
+standard scores corresponding to that raw score.
+
+The analytic approach is to apply `chisq.test()` to each row of `comp_w_uw`. `chisq.test()` expects a matrix with two rows, each containing one of the "distributions" to be compared. In `comp_w_uw`, these two "distributions" are arranged side-by-side in a single row. We isolate this single row with `comp_w_uw[.x, 1:ncol(comp_w_uw)]`, where the subsetting brackets `[]` identify, within `comp_w_uw`, a row `.x`, and the indexes of the required columns `1:ncol(comp_w_uw)`. This expression returns a data frame row, which is then wrapped in `as.numeric()` to transform it into a numerical vector. To convert the vector into the matrix expected by `chisq.test()`, we wrap it in `matrix()`, specifying that the vector is to be split in half `ncol(comp_w_uw)/2, 2`, with the halves stacked in two rows `nrow = 2`. `chisq.test()` returns a list, from which we extract the test statistic with `$statistic`.
+
+The previous paragraph describes the functions necessary to process one row of `comp_w_uw`. To process all the rows, we apply the functions iteratively with `map_dbl()`. The first argument of `map_dbl()` is `seq_len(nrow(comp_w_uw)`, which returns a numerical sequence whose length is the same as the number of rows in `comp_w_uw`. Thus, `map_dbl()` iterates over this sequence, passing successive row numbers to the `.x` token in `comp_w_uw[.x, 1:ncol(comp_w_uw)]`, so that `chisq.test()` is applied to every row in `comp_w_uw`. `map_dbl()` returns a numerical vector, (assigned to `chi_square`), which we bind to `comp_w_uw` as a new column with `comp_w_uw$chi_square <- chi_square`. That new column now contains the chi-square values associated with the comparison of the two "distributions" in each row.
+```{r cNORM-weighting-demo, echo = 83:87, eval = F}
+```
+
+We can then obtain the values needed to look up the threshold of
+statistical significance the chi-square distribution table. `chi_sq_max`
+(here 0.311) is the maximum of the row-wise chi-square statistics, and
+`df` (here 13) is the degrees of freedom of the statistical test.
+Examining the chi-square distribution table for df = 13 and p \< .05, we
+find chi-square = 5.89. Comparing `chi_sq_max` to this value, we cannot
+reject the null hypothesis that there is no difference between the
+distributions embodied by the two lookup tables. In other words, the
+weighted and unweighted raw-to-norm-score look up tables, though they
+may include numerous small pairwise differences between cells, do not
+differ significantly from each other, when we apply the chi-square test
+in the manner described.
+
+```{r cNORM-weighting-demo, echo = 88:93, eval = F}
 ```
