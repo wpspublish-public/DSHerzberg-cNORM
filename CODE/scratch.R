@@ -50,9 +50,9 @@ comp_w_uw <-full_join(
 ) %>% 
   select(-raw)
 
-chi1 <- map_dbl(seq_len(nrow(comp_w_uw)),
+chi <- map_dbl(seq_len(nrow(comp_w_uw)),
                 ~
-                  chisq.test(matrix(as.numeric(comp_w_uw[.x, 1:28]), nrow = 2, 14, 2))$statistic)
+                  chisq.test(matrix(as.numeric(comp_w_uw[.x, 1:ncol(comp_w_uw)]), nrow = 2, ncol(comp_w_uw)/2, 2))$statistic)
 comp_w_uw$chi_square <- chi
 
 chi_sq_max <- max(comp_w_uw$chi_square)
@@ -62,4 +62,12 @@ if_else(chi_sq_max < chi_sq_crit,
         "no diff",
         "diff")
 
-temp2 <- interleave(table_weighted, table_unweighted)
+# write the function to get chi-square statistics
+chi_sq_outcome <- function(x) {
+  chi_sq_max <- max(comp_w_uw$chi_square)
+  df <- length(x) - 1
+  chi_sq_crit <- qchisq(.05, df)
+  if_else(chi_sq_max < chi_sq_crit,
+          "Weighted, unweighted lookup tables DO NOT DIFFER significantly (per chi-square test).",
+          "Weighted, unweighted lookup tables DIFFER significantly (per chi-square test)")
+}

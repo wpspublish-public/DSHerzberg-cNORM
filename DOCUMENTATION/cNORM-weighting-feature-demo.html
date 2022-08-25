@@ -532,17 +532,17 @@ comp_w_uw &lt;-full_join(
 ) %&gt;% 
   select(-raw)
 
-chi &lt;- sapply(seq_len(nrow(comp_w_uw)), function(x) {
-  chisq.test(matrix(as.numeric(comp_w_uw[x, 1:28]), nrow = 2, 14, 2))$statistic
-})
+chi &lt;- map_dbl(seq_len(nrow(comp_w_uw)),
+                ~
+                  chisq.test(matrix(as.numeric(comp_w_uw[.x, 1:ncol(comp_w_uw)]), nrow = 2, ncol(comp_w_uw)/2, 2))$statistic)
 comp_w_uw$chi_square &lt;- chi
 
 chi_sq_max &lt;- max(comp_w_uw$chi_square)
 df &lt;- length(age_strat) - 1
 chi_sq_crit &lt;- qchisq(.05, df)
 if_else(chi_sq_max &lt; chi_sq_crit,
-        &quot;no diff&quot;,
-        &quot;diff&quot;)</code></pre>
+        &quot;Weighted, unweighted lookup tables DO NOT DIFFER significantly (per chi-square test).&quot;,
+        &quot;Weighted, unweighted lookup tables DIFFER significantly (per chi-square test)&quot;)</code></pre>
 </div>
 <div id="commented-snippets" class="section level4">
 <h4>Commented Snippets</h4>
@@ -781,17 +781,17 @@ unweighted raw-to-norm-score look up tables, though they may include
 numerous small pairwise differences between cells, do not differ
 significantly from each other, when we apply the chi-square test in the
 manner described.</p>
-<pre class="r"><code>chi &lt;- sapply(seq_len(nrow(comp_w_uw)), function(x) {
-  chisq.test(matrix(as.numeric(comp_w_uw[x, 1:28]), nrow = 2, 14, 2))$statistic
-})
+<pre class="r"><code>chi &lt;- map_dbl(seq_len(nrow(comp_w_uw)),
+                ~
+                  chisq.test(matrix(as.numeric(comp_w_uw[.x, 1:ncol(comp_w_uw)]), nrow = 2, ncol(comp_w_uw)/2, 2))$statistic)
 comp_w_uw$chi_square &lt;- chi
 
 chi_sq_max &lt;- max(comp_w_uw$chi_square)
 df &lt;- length(age_strat) - 1
 chi_sq_crit &lt;- qchisq(.05, df)
 if_else(chi_sq_max &lt; chi_sq_crit,
-        &quot;no diff&quot;,
-        &quot;diff&quot;)</code></pre>
+        &quot;Weighted, unweighted lookup tables DO NOT DIFFER significantly (per chi-square test).&quot;,
+        &quot;Weighted, unweighted lookup tables DIFFER significantly (per chi-square test)&quot;)</code></pre>
 </div>
 <div class="footnotes footnotes-end-of-document">
 <hr />
