@@ -17,8 +17,8 @@ non-demographically representative normative samples. The weighting
 function is designed to correct bias in the raw-to-norm-score
 relationships that might be introduced by non-representative data.
 
-[^1]: The core documentation for the use of `cNORM` is provided in
-    ***Generating raw-to-norm-score lookup tables with cNORM*****.**
+[^1]: The core documentation for `cNORM` is provided in ***Generating
+    raw-to-norm-score lookup tables with cNORM*****.**
 
 This markdown document expands on a demonstration of the weighting
 function prepared by the `cNORM` author group. To run the demonstration,
@@ -42,7 +42,7 @@ columns for the values of `migration`. This table has four joint
 cross-classification cells, representing the four possible combinations
 of the categories of `sex` and `migration`.
 
-We can represent the target percentages for each demographic variable on
+We can represent the target percentages for the demographic variables on
 the table margins (that is, on the left and upper edges of the table.)
 These *marginal percentages*, of course, sum to 100% for each variable.
 The cells contain the *joint classification percentages* (also summing
@@ -174,6 +174,11 @@ chi_sq_crit <- qchisq(.05, df)
 if_else(chi_sq_max < chi_sq_crit,
         "Weighted, unweighted lookup tables DO NOT DIFFER significantly (per chi-square test).",
         "Weighted, unweighted lookup tables DIFFER significantly (per chi-square test)")
+
+comp_w_uw <- comp_w_uw %>% 
+  mutate(effect_size = sqrt(chi_square/(nrow(.) * df)))
+effect_size_max <- max(comp_w_uw$effect_size)
+df_V <- min(length(age_strat), 2) - 1
 ```
 
 #### Commented Snippets
@@ -246,17 +251,18 @@ percentages `population.margins =`.
 based on the marginal percentages for the demographic variables. It
 returns a numerical vector (here assigned to `weights_ppvt`) containing
 weights for each person in the normative sample, based on that person's
-demographic classification. `computeWeight()` also standardizes the
-weights, by dividing each weight by the smallest weight yielded by
-analysis. This sets the weight associated with the most over-sampled
-joint classification cell to 1. The weights in the current example are:
+classification on the demographic variables considered in the weighting
+analysis. `computeWeight()` also standardizes the weights, by dividing
+each weight by the smallest weight yielded by analysis. This sets the
+weight associated with the most over-sampled joint classification cell
+to 1. The weights in the current example are:
 
 |            |        Non-migrant        |            Migrant            |
 |-----------:|:-------------------------:|:-----------------------------:|
 |   **Male** |  Male, Migrant: 1.000000  |  Male, Non-migrant: 1.403915  |
 | **Female** | Female, Migrant: 1.007713 | Female, Non-migrant: 1.414743 |
 
-In this script, we pipe `norm_data` into `mutate()` to create a new
+In this snippet, we pipe `norm_data` into `mutate()` to create a new
 column `weights`. Within `mutate()`, we execute `computeWeights()`,
 populating the new column with the weights for each person in
 `norm_data`.
@@ -265,7 +271,7 @@ populating the new column with the weights for each person in
 ```
 
 The script generates a data frame `norm_data_weights` that shows the
-weights associated with the four cross-classification cells. In this
+weights associated with the four cross-classification cells. In the next
 snippet, we group `norm_data` by `sex` and `migration`, which creates a
 four-row structure to hold the weights for the cross-classification
 cells. We then call `summarize`, which appends a new column `weights` to
@@ -292,29 +298,33 @@ and unweighted norm models. The modeling and output table functions of
 ```{r cNORM-weighting-demo, echo = 24:74, eval = F}
 ```
 
-We can compare raw-to-norm-score lookup tables based on weighted vs.
-unweighted data. The method[^4] includes both testing for a
-statistically significant difference, and calculating an effect size
-measure for the difference between weighted and unweighted tables.
+The final step of this demonstration is to examine the differences
+between the weighted and unweighted output. The next code block is a
+method for comparing raw-to-norm-score lookup tables derived from
+weighted normative samples to those derived from unweighted samples. The
+method[^4] includes both significance testing of the differences between
+the tables, and calculation of an effect size measure.
 
 [^4]: The method was developed by Nan Wang of WPS R&D.
 
-The logic of the statistical test is to view the two lookup tables as
-analogous to two different samples. Under this framework, the normative
-age strata represent categories of a nominal variable, and the norm
-scores within those categories are analogous to "counts" of "persons".
-We can then use a chi-square test to compare the two "samples" (lookup
-tables), in terms of the distribution of "persons" (norm score "counts")
-across the "categories" (age strata). In this test, the null hypothesis
-is that there is no difference between the distributions represented by
-the two tables. The alternative hypothesis is that a difference exists.
-The degrees of freedom for this chi-square test is the number of age
-strata in the lookup tables, minus one (here: 14-1 = 13).
+The conceptual basis of the significance test is to view the two lookup
+tables as analogous to two different samples. Under this framework, the
+normative age strata (age groups) represent categories of a nominal
+variable, and the norm scores within those categories are analogous to
+counts of persons. A chi-square test can be used to compare the two
+"samples" (lookup tables), in terms of the distribution of "persons"
+(norm score "counts") across the "categories" (age groups). In this
+test, the null hypothesis is that there is no difference between the
+distributions embodied in the two tables. The alternative hypothesis is
+that a difference exists. The degrees of freedom for this chi-square
+test is the number of age groups in the lookup tables, minus one (here:
+14-1 = 13).
 
-To compare the two tables, we first combine them with `full_join()`, and
-then drop the `raw` column with `select()`. This returns a single data
-frame `comp_w_uw` holding only the weighted and unweighted standard
-score columns (one for age group), arranged side-by-side.
+To compare the two tables, we first bind their columns with
+`full_join()`, and then drop the `raw` column with `select()`. This
+returns a single data frame `comp_w_uw` holding only the weighted and
+unweighted standard score columns (one per age group), arranged
+side-by-side.
 
 ```{r cNORM-weighting-demo, echo = 75:82, eval = F}
 ```
@@ -322,31 +332,100 @@ score columns (one for age group), arranged side-by-side.
 The next snippet conducts the chi-square test on `comp_w_uw`. It appends
 `comp_w_uw` with a new column `chi_square` that contains row-wise
 chi-square statistics. To clarify, each row of `comp_w_uw` holds the
-standard scores corresponding to a single raw score, by age group, for
-the weighted and unweighted normative models. The chi-square statistic
-represents a test of whether the null hypothesis can be rejected; that
-is, whether there is a statistically significant difference between the
-weighted and unweighted tables with respect to the distribution of
-standard scores corresponding to that raw score.
+standard scores (by age group) corresponding to a single raw score, for
+the weighted and unweighted normative data. The chi-square statistic
+represents a test of whether the null hypothesis can be rejected.
+Rejection of the null means that, for a particular raw score, there is a
+statistically significant difference between the weighted and unweighted
+tables with respect to the distribution of standard scores.
 
-The analytic approach is to apply `chisq.test()` to each row of `comp_w_uw`. `chisq.test()` expects a matrix with two rows, each containing one of the "distributions" to be compared. In `comp_w_uw`, these two "distributions" are arranged side-by-side in a single row. We isolate this single row with `comp_w_uw[.x, 1:ncol(comp_w_uw)]`, where the subsetting brackets `[]` identify, within `comp_w_uw`, a row `.x`, and the indexes of the required columns `1:ncol(comp_w_uw)`. This expression returns a data frame row, which is then wrapped in `as.numeric()` to transform it into a numerical vector. To convert the vector into the matrix expected by `chisq.test()`, we wrap it in `matrix()`, specifying that the vector is to be split in half `ncol(comp_w_uw)/2, 2`, with the halves stacked in two rows `nrow = 2`. `chisq.test()` returns a list, from which we extract the test statistic with `$statistic`.
+The analytic approach is to apply `chisq.test()` to each row of
+`comp_w_uw`. `chisq.test()` expects a matrix with two rows, each
+containing one of the "distributions" to be compared. In `comp_w_uw`,
+these two "distributions" are arranged side-by-side in a single row. We
+isolate this single row with `comp_w_uw[.x, 1:ncol(comp_w_uw)]`, where
+the subsetting brackets `[]` identify, within `comp_w_uw`, a row `.x`,
+and the indexes of the required columns `1:ncol(comp_w_uw)`. This
+expression returns a data frame row, which is then wrapped in
+`as.numeric()` to transform it into a numerical vector. To convert the
+vector into the matrix expected by `chisq.test()`, we wrap it in
+`matrix()`, specifying that the vector is to be split in half
+`ncol(comp_w_uw)/2, 2`, with the two halves stacked on top of each other
+as two rows of a matrix `nrow = 2`. `chisq.test()` returns a list, from
+which we extract the test statistic with `$statistic`.
 
-The previous paragraph describes the functions necessary to process one row of `comp_w_uw`. To process all the rows, we apply the functions iteratively with `map_dbl()`. The first argument of `map_dbl()` is `seq_len(nrow(comp_w_uw)`, which returns a numerical sequence whose length is the same as the number of rows in `comp_w_uw`. Thus, `map_dbl()` iterates over this sequence, passing successive row numbers to the `.x` token in `comp_w_uw[.x, 1:ncol(comp_w_uw)]`, so that `chisq.test()` is applied to every row in `comp_w_uw`. `map_dbl()` returns a numerical vector, (assigned to `chi_square`), which we bind to `comp_w_uw` as a new column with `comp_w_uw$chi_square <- chi_square`. That new column now contains the chi-square values associated with the comparison of the two "distributions" in each row.
+The previous paragraph describes the functions necessary to process one
+row of `comp_w_uw`. To process all the rows, we apply the functions
+iteratively with `map_dbl()`. The first argument of `map_dbl()` is
+`seq_len(nrow(comp_w_uw)`, which returns a numerical sequence whose
+length is the same as the number of rows in `comp_w_uw`. Thus,
+`map_dbl()` iterates over this sequence, passing successive row numbers
+to the `.x` token in `comp_w_uw[.x, 1:ncol(comp_w_uw)]`, so that
+`chisq.test()` is applied to every row in `comp_w_uw`. `map_dbl()`
+returns a numerical vector, (assigned to `chi_square`), which we bind to
+`comp_w_uw` as a new column with `comp_w_uw$chi_square <- chi_square`.
+That new column now contains the chi-square values associated with the
+comparison of the two "distributions" in each row.
+
 ```{r cNORM-weighting-demo, echo = 83:87, eval = F}
 ```
 
-We can then obtain the values needed to look up the threshold of
-statistical significance the chi-square distribution table. `chi_sq_max`
-(here 0.311) is the maximum of the row-wise chi-square statistics, and
-`df` (here 13) is the degrees of freedom of the statistical test.
-Examining the chi-square distribution table for df = 13 and p \< .05, we
-find chi-square = 5.89. Comparing `chi_sq_max` to this value, we cannot
-reject the null hypothesis that there is no difference between the
-distributions embodied by the two lookup tables. In other words, the
-weighted and unweighted raw-to-norm-score look up tables, though they
-may include numerous small pairwise differences between cells, do not
-differ significantly from each other, when we apply the chi-square test
-in the manner described.
+To test for statistical significance, we use the maximum of the obtained
+row-wise chi-square values `chi_sq_max` (here 0.311). To look up the
+critical value of chi-square, we call `qchisq()`, passing as arguments a
+significance level `.05` and the degrees of freedom `df` (the number of "categories", or age groups, minus one).
+`qchisq()` returns a critical value of 5.89, which we assign to
+`chi_sq_crit`.
+
+We specify the comparison of the obtained chi-square to the critical
+value with the predicate `chi_sq_max < chi_sq_crit`. When this predicate returns `TRUE`, we fail to reject the null hypothesis that there is no difference between the weighted and unweighted lookup tables. When `FALSE` is returned, we reject the null and accept the alternative that a statisically significant difference exists between the two tables. We use `if_else()` to print the interpretation of the significance test, passing as arguments the predicate, followed by strings to print, first when the predicate returns `TRUE`,
+then when it returns `FALSE`.
+
+In the current example, 0.311 is less than 5.89, so the predicate
+returns `TRUE` and
+`"Weighted, unweighted lookup tables DO NOT DIFFER significantly (per chi-square test)."`
+prints to the console. The chi-square test therefore reveals that we
+cannot reject the null hypothesis that there is no difference between
+the distributions embodied by the two lookup tables. In other words,
+even though the weighted and unweighted raw-to-norm-score look up tables
+may may have numerous small pairwise differences between analogous
+cells, the overall difference betweeen the distributions of these
+pairwise differences does not reach the threshold of statistical
+significance, when we apply the chi-square test in the manner described.
 
 ```{r cNORM-weighting-demo, echo = 88:93, eval = F}
 ```
+
+In addition to significance test, we can also calculate effect sizes for
+the row-wise chi-square values. Cramer's V provides a useful measure of
+chi-square effect size. The formula is:
+
+![](images/Screen%20Shot%202022-08-26%20at%201.41.45%20PM.png){width="156"}
+
+Where *n* is the number of rows in `comp_w_uw`. In the snippet below, we
+apply the Cramer's V formula within `mutate()` to obtain a new `effect_size` column
+for `comp_w_uw`. The `max()` of `effect_size` is the largest value
+across all rows of `comp_w_uw`. Here that maximum value is 0.011.
+
+To interpret this effect size, we can refer to a table provided by Cohen
+(1988)[^5]:
+
+[^5]: Cohen, J. (1988). *Statistical power analysis for the behavioral
+    sciences* (2nd ed). Hillsdale, N.J: L. Erlbaum Associates.
+
+![](images/Screen%20Shot%202022-08-26%20at%202.31.21%20PM.png){width="420"}
+
+Here, `df` is not the value used for chi-square test, but is in fact
+related to the dimensions of the matrix that served as input to that
+test. Specifically, `df_V` is the lesser of the number of columns of the
+matrix and the number of rows of the matrix, minus one. In our example, the matrix has
+14 columns (one for each age group) and two rows (weighted vs.
+unweighted data). Thus, `df_V` is 1. Referencing the table, we see that
+the effect size is negligible for the largest row-wise chi-square value.
+
+```{r cNORM-weighting-demo, echo = 94:98, eval = F}
+```
+
+In the final analysis, therefore, the use of weighting to correct for
+norm-score bias in a non-demographically representative normative sample
+***did not*** result in practically meaningful adjustments to the raw-to-norm-score relationships, in comparison to the unweighted normative model. This makes intuitive sense: the mere presence of demographic non-representativeness does not necessarily cause a change in the distribution of raw scores of sufficient magnitude that it would affect the output of the norming process. This is especially true with respect to `cNORM`, which uses a regression-based modeling procedure to smooth out age-related irregularities in the raw score distribution. Any effects of demographic non-representativeness may well be captured and corrected by `cNORM`'s foundational mathematics, irrespective of the subsequent influence of the weighting function.
